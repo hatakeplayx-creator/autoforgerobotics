@@ -1,0 +1,32 @@
+import { useMemo, useRef, useState } from "react";
+import { importProducts, previewProductImport, type ProductImportPreview, type ProductImportResult } from "@/services/adminApi";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
+
+type ImportedRow = Record<string, unknown>;
+const template = "name,sku,slug,description,price,compareAtPrice,stockQuantity,lowStockThreshold,category,brand,specifications,imageUrls,featured\nExample product,AF-001,example-product,Product description,999,1199,10,5,Development Boards,AutoForge,\"{\"\"voltage\"\":\"\"5V\"\"}\",https://example.com/image.jpg,true\n";
+
+function csvRows(text: string): ImportedRow[] {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+  const split = (line: string) => { const values: string[] = []; let value = ""; let quoted = false; for (let i = 0; i < line.length; i += 1) { const char = line[i]; if (char === '"') { if (quoted && line[i + 1] === '"') { value += char; i += 1; } else quoted = !quoted; } else if (char === "," && !quoted) { values.push(value); value = ""; } else value += char; } values.push(value); return values; };
+  const headers = split(lines[0]).map((header) => header.trim());
+  return lines.slice(1).map((line) => Object.fromEntries(headers.map((header, index) => [header, split(line)[index]?.trim() ?? ""])));
+}
+
+function normalize(row: ImportedRow): ImportedRow {
+  const parseNumber = (key: string) => row[key] === "" || row[key] === undefined ? undefined : Number(row[key]);
+  const parseJson = (key: string) => { const value = row[key]; if (typeof value !== "string" || !value.trim()) return undefined; try { return JSON.parse(value); } catch { return value; } };
+  const imageUrls = typeof row.imageUrls === "string" ? row.imageUrls.split("|").map((url) => url.trim()).filter(Boolean) : row.imageUrls;
+  return { ...row, price: parseNumber("price"), compareAtPrice: parseNumber("compareAtPrice"), stockQuantity: parseNumber("stockQuantity"), lowStockThreshold: parseNumber("lowStockThreshold"), featured: typeof row.featured === "string" ? row.featured.toLowerCase() === "true" : row.featured, specifications: parseJson("specifications"), imageUrls };
+}
+
+export default function ProductImportSection({ token }: { token?: string }) {
+  const input = useRef<HTMLInputElement>(null); const [rows, setRows] = useState<ImportedRow[]>([]); const [preview, setPreview] = useState<ProductImportPreview | null>(null); const [busy, setBusy] = useState(false); const [result, setResult] = useState<ProductImportResult | null>(null);
+  const validRows = useMemo(() => rows.map(normalize), [rows]);
+  const readFile = async (file: File) => { try { const text = await file.text(); const data: unknown = file.name.toLowerCase().endsWith(".json") ? JSON.parse(text) : csvRows(text); const parsed = Array.isArray(data) ? data : (data && typeof data === "object" && Array.isArray((data as { products?: unknown }).products) ? (data as { products: unknown[] }).products : null); if (!parsed || !parsed.every((row) => row && typeof row === "object")) throw new Error("Use a JSON array, a { products: [] } export, or CSV with a header row."); setRows(parsed as ImportedRow[]); setPreview(null); setResult(null); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not read import file"); } };
+  const validate = async () => { if (!validRows.length) return; setBusy(true); try { setPreview(await previewProductImport(validRows, token)); } catch (error) { toast.error(error instanceof Error ? error.message : "Preview failed"); } finally { setBusy(false); } };
+  const submit = async (dryRun: boolean) => { if (!validRows.length) return; setBusy(true); try { const next = await importProducts(validRows, dryRun, token); setResult(next); toast.success(dryRun ? "Dry run completed" : `Imported ${next.created + next.updated} products`); } catch (error) { toast.error(error instanceof Error ? error.message : "Import failed"); } finally { setBusy(false); } };
+  const downloadTemplate = () => { const blob = new Blob([template], { type: "text/csv" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "autoforge-product-import-template.csv"; anchor.click(); URL.revokeObjectURL(url); };
+  return <section className="rounded-lg border bg-card p-5"><Toaster /><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">Product Import</h2><p className="text-sm text-muted-foreground">CSV, JSON, or API/database export. Products match by SKU.</p></div><div className="flex gap-2"><button className="rounded border px-3 py-2 text-sm" onClick={downloadTemplate}>Template</button><button className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground" onClick={() => input.current?.click()}>Choose file</button><input ref={input} className="hidden" type="file" accept=".csv,.json,application/json,text/csv" onChange={(event) => { const file = event.target.files?.[0]; if (file) void readFile(file); event.currentTarget.value = ""; }} /></div></div>{rows.length > 0 && <div className="mt-5 space-y-4"><p className="text-sm">{rows.length} row(s) loaded.</p><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={() => void validate()} className="rounded border px-3 py-2 text-sm disabled:opacity-50">Validate preview</button><button disabled={busy || !preview || preview.invalid.length > 0} onClick={() => void submit(true)} className="rounded border px-3 py-2 text-sm disabled:opacity-50">Dry run</button><button disabled={busy || !preview || preview.invalid.length > 0} onClick={() => void submit(false)} className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">Import</button></div>{preview && <div className="rounded border p-3 text-sm"><p>{preview.valid.length} valid · {preview.invalid.length} invalid</p>{preview.invalid.slice(0, 20).map((issue) => <p key={issue.row} className="mt-1 text-destructive">Row {issue.row}: {issue.errors.join("; ")}</p>)}</div>}{result && <p className="rounded border p-3 text-sm">Batch {result.batchId}: {result.created} created, {result.updated} updated, {result.categories} categories created.</p>}</div>}</section>;
+}
