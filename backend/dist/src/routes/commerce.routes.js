@@ -1,0 +1,10 @@
+import { Router } from "express";
+import { authenticate } from "../middlewares/auth.js";
+import { asyncHandler } from "../utils/async-handler.js";
+import * as c from "../controllers/commerce.controller.js";
+export const commerceRouter = Router();
+commerceRouter.use(authenticate);
+commerceRouter.route("/wishlist").get(asyncHandler(c.listWishlist)).post(asyncHandler(c.addWishlist));
+commerceRouter.delete("/wishlist/:id", asyncHandler(c.removeWishlist));
+commerceRouter.route("/cart").get(asyncHandler(c.listCart)).put(asyncHandler(c.setCart));
+commerceRouter.delete("/cart/:id", asyncHandler(c.removeCart));

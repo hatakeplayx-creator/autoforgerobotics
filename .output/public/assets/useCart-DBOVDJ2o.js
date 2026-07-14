@@ -1,0 +1,1 @@
+import{n as e}from"./rolldown-runtime-Bh1tDfsg.js";import{d as t}from"./useAuth-D2wxZDqk.js";import{t as n}from"./CartContext-BpVavZbd.js";var r=e(t(),1);function i(){let e=(0,r.useContext)(n);if(e===void 0)throw Error(`useCart must be used within a CartProvider`);return e}export{i as t};

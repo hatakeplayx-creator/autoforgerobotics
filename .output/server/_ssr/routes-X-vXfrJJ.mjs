@@ -1,0 +1,263 @@
+import { n as __toESM } from "../_runtime.mjs";
+import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
+import { h as Link } from "../_libs/@tanstack/react-router+[...].mjs";
+import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-arrow+[...].mjs";
+import { n as apiFetch } from "./useAuth-BDG16QbY.mjs";
+import { G as CircuitBoard, S as Printer, rt as BatteryCharging, t as Zap } from "../_libs/lucide-react.mjs";
+import { a as StoreHeader, c as useCategories, d as useProducts, f as useStoreMetadata, i as StoreFooter, l as useHeroBanners, n as NavBar, o as TopBar, r as Skeleton, t as AnnouncementBar } from "./StoreFooter-Z2RR4EsA.mjs";
+import { t as ProductCard } from "./ProductCard-CaTb6Sc_.mjs";
+import { t as useEmblaCarousel } from "../_libs/embla-carousel-react+[...].mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-X-vXfrJJ.js
+var import_react = /* @__PURE__ */ __toESM(require_react());
+var import_jsx_runtime = require_jsx_runtime();
+var serviceIcons = {
+	"PCB Manufacturing": CircuitBoard,
+	"3D Printing": Printer,
+	"Laser Cutting": Zap,
+	"Custom Battery Pack": BatteryCharging
+};
+var serviceToCategory = {
+	"PCB Manufacturing": "Development Boards",
+	"3D Printing": "3D Printers and Parts",
+	"Laser Cutting": "DIY and Maker Kits",
+	"Custom Battery Pack": "Batteries, Power Supply and Accessories"
+};
+function HeroSection() {
+	const { data: banners, loading: bannersLoading } = useHeroBanners();
+	const { data: meta, loading: metaLoading } = useStoreMetadata();
+	const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
+	const [selected, setSelected] = (0, import_react.useState)(0);
+	const onSelect = (0, import_react.useCallback)(() => {
+		if (emblaApi) setSelected(emblaApi.selectedScrollSnap());
+	}, [emblaApi]);
+	(0, import_react.useEffect)(() => {
+		if (!emblaApi) return;
+		emblaApi.on("select", onSelect);
+		const timer = setInterval(() => emblaApi.scrollNext(), 5e3);
+		return () => {
+			clearInterval(timer);
+			emblaApi.off("select", onSelect);
+		};
+	}, [emblaApi, onSelect]);
+	if (bannersLoading || metaLoading || !banners || !meta) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
+		className: "mx-auto max-w-7xl px-4 py-6",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "grid gap-4 lg:grid-cols-[240px_1fr]",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "hidden flex-col gap-3 lg:flex",
+				children: Array.from({ length: 4 }).map((_, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "h-[73px] w-full rounded-lg" }, i))
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "h-[200px] sm:h-[300px] lg:h-[320px] w-full rounded-xl" })]
+		})
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
+		className: "mx-auto max-w-7xl px-4 py-6",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "grid gap-4 lg:grid-cols-[240px_1fr]",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("aside", {
+				className: "hidden flex-col gap-2 lg:flex",
+				children: meta.services.map((s, idx) => {
+					const Icon = serviceIcons[s.name] || CircuitBoard;
+					const tint = idx % 2 === 0 ? "bg-accent/10" : "bg-primary/10";
+					const category = serviceToCategory[s.name];
+					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Link, {
+						to: "/shop",
+						search: { category },
+						className: `flex flex-1 items-center justify-between rounded-lg ${tint} px-4 py-3 transition-transform hover:-translate-y-0.5`,
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: "text-sm font-semibold text-foreground",
+							children: s.name
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Icon, { className: "h-8 w-8 text-primary" })]
+					}, s.name);
+				})
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "relative overflow-hidden rounded-xl bg-secondary/20",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					ref: emblaRef,
+					className: "overflow-hidden",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "flex",
+						children: banners.map((banner, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "min-w-0 flex-[0_0_100%] aspect-[3/1]",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+								src: banner.image,
+								alt: banner.alt,
+								width: 1920,
+								height: 512,
+								loading: i === 0 ? "eager" : "lazy",
+								className: "h-full w-full object-cover"
+							})
+						}, i))
+					})
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5",
+					children: banners.map((_, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						"aria-label": `Go to slide ${i + 1}`,
+						onClick: () => emblaApi?.scrollTo(i),
+						className: `h-1.5 rounded-full transition-all cursor-pointer ${selected === i ? "w-5 bg-primary" : "w-1.5 bg-primary/40"}`
+					}, i))
+				})]
+			})]
+		})
+	});
+}
+function CategoryGrid() {
+	const { data: categoriesList, loading } = useCategories();
+	if (loading || !categoriesList) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "mx-auto max-w-7xl px-4 py-8",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "mb-6 flex items-center justify-between gap-4",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex flex-1 items-center gap-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "h-8 w-44" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "h-px flex-1" })]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "h-9 w-24" })]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			className: "grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 lg:grid-cols-6",
+			children: Array.from({ length: 6 }).map((_, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "space-y-3",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "aspect-square w-full rounded-lg" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "h-4 w-3/4" })]
+			}, i))
+		})]
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "mx-auto max-w-7xl px-4 py-8",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "mb-6 flex items-center justify-between gap-4",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex flex-1 items-center gap-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+					className: "text-2xl font-bold text-foreground md:text-3xl",
+					children: "Categories"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "h-px flex-1 bg-border" })]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+				to: "/shop",
+				className: "rounded-lg border border-primary px-5 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground",
+				children: "View All"
+			})]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			className: "grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 lg:grid-cols-6",
+			children: categoriesList.map((cat) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Link, {
+				to: "/shop",
+				search: { category: cat.name },
+				className: "group",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "overflow-hidden rounded-lg",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+						src: typeof cat.image === "string" ? cat.image : cat.image?.url,
+						alt: cat.name,
+						width: 640,
+						height: 640,
+						loading: "lazy",
+						className: "aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
+					})
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+					className: "mt-3 text-sm font-semibold leading-snug text-foreground group-hover:text-primary",
+					children: cat.name
+				})]
+			}, cat.name))
+		})]
+	});
+}
+function FeaturedProducts() {
+	const { data: products, loading } = useProducts();
+	if (loading || !products) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "mx-auto max-w-7xl px-4 py-8",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "mb-6 flex items-center justify-between gap-4",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex flex-1 items-center gap-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "h-8 w-52" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "h-px flex-1" })]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "h-9 w-24" })]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			className: "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6",
+			children: Array.from({ length: 6 }).map((_, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "border border-border rounded-lg p-3 space-y-3",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "h-3 w-12" }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "aspect-square w-full rounded" }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "h-4 w-3/4" }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "h-3 w-16" }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skeleton, { className: "h-7 w-full" })
+				]
+			}, i))
+		})]
+	});
+	const displayProducts = products.slice(0, 6);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "mx-auto max-w-7xl px-4 py-8",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "mb-6 flex items-center justify-between gap-4",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex flex-1 items-center gap-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+					className: "text-2xl font-bold text-foreground md:text-3xl",
+					children: "Featured Products"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "h-px flex-1 bg-border" })]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+				to: "/shop",
+				className: "rounded-lg border border-primary px-5 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground",
+				children: "View All"
+			})]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			className: "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6",
+			children: displayProducts.map((product) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProductCard, { product }, product.sku))
+		})]
+	});
+}
+var api = "http://localhost:4000".replace(/\/$/, "") ?? "";
+function TrustedBrands() {
+	const [brands, setBrands] = (0, import_react.useState)([]);
+	(0, import_react.useEffect)(() => {
+		apiFetch("/api/brands").then((rows) => setBrands(rows.filter((b) => b.active))).catch(() => setBrands([]));
+	}, []);
+	if (!brands.length) return null;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "mx-auto max-w-7xl px-4 py-10",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "text-center",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "text-sm font-bold tracking-wide text-accent",
+				children: "OUR PARTNERS"
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+				className: "mt-1 text-2xl font-extrabold text-foreground",
+				children: "Trusted Brands"
+			})]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			className: "mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7",
+			children: brands.map((brand) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "flex aspect-[2/1] items-center justify-center rounded-lg border bg-card p-4",
+				children: brand.logoUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+					src: brand.logoUrl.startsWith("http") ? brand.logoUrl : `${api}${brand.logoUrl}`,
+					alt: brand.name,
+					className: "max-h-full max-w-full object-contain"
+				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: "text-sm font-semibold text-muted-foreground",
+					children: brand.name
+				})
+			}, brand.id))
+		})]
+	});
+}
+function Index() {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "min-h-screen bg-background",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AnnouncementBar, {}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TopBar, {}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(StoreHeader, {}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavBar, {}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("main", { children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+					className: "sr-only",
+					children: "AutoForge Robotics — Robotics, Electronics & Maker Components Store"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(HeroSection, {}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CategoryGrid, {}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FeaturedProducts, {}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrustedBrands, {})
+			] }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(StoreFooter, {})
+		]
+	});
+}
+//#endregion
+export { Index as component };

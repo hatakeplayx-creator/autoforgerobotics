@@ -1,0 +1,235 @@
+import { n as __toESM } from "../_runtime.mjs";
+import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
+import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-arrow+[...].mjs";
+import { n as toast } from "../_libs/sonner.mjs";
+import { n as apiFetch } from "./useAuth-BDG16QbY.mjs";
+import { J as CircleCheck, R as Handshake, l as TrendingUp, p as Store } from "../_libs/lucide-react.mjs";
+import { t as StorePageShell } from "./StorePageShell-DHngzsW8.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/sell-on-autoforge-DIO30ycH.js
+var import_react = /* @__PURE__ */ __toESM(require_react());
+var import_jsx_runtime = require_jsx_runtime();
+var fields = [
+	"Full Name",
+	"Company Name",
+	"Email",
+	"Phone Number",
+	"GST Number (optional)",
+	"Business Type",
+	"Website (optional)",
+	"City",
+	"State",
+	"Country",
+	"Products Interested In Selling",
+	"Existing Brands",
+	"Monthly Sales"
+];
+function SellOnAutoForge() {
+	const [saving, setSaving] = (0, import_react.useState)(false);
+	const [accepted, setAccepted] = (0, import_react.useState)(false);
+	async function submit(e) {
+		e.preventDefault();
+		if (!accepted) {
+			toast.error("Please accept the terms and conditions.");
+			return;
+		}
+		const f = new FormData(e.currentTarget);
+		setSaving(true);
+		try {
+			await apiFetch("/api/enquiries", {
+				method: "POST",
+				body: JSON.stringify({
+					type: "sell",
+					name: f.get("fullName"),
+					companyName: f.get("companyName"),
+					email: f.get("email"),
+					phone: f.get("phone"),
+					message: f.get("message") || f.get("description"),
+					details: Object.fromEntries([...f.entries()].filter(([k]) => ![
+						"fullName",
+						"companyName",
+						"email",
+						"phone",
+						"message"
+					].includes(k)))
+				})
+			});
+			e.currentTarget.reset();
+			setAccepted(false);
+			toast.success("Your seller application has been received.");
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "Unable to submit application.");
+		} finally {
+			setSaving(false);
+		}
+	}
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StorePageShell, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "space-y-14 pb-8",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "rounded-xl bg-primary px-6 py-12 text-primary-foreground sm:px-10",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-sm font-bold tracking-wide text-accent",
+						children: "PARTNER WITH AUTOFORGE"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+						className: "mt-3 max-w-2xl text-3xl font-extrabold sm:text-5xl",
+						children: "Reach India's next generation of builders."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-4 max-w-xl text-primary-foreground/85",
+						children: "Join a focused marketplace for robotics, electronics, drones and maker supplies."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+						href: "#seller-form",
+						className: "mt-7 inline-flex rounded-md bg-accent px-5 py-3 text-sm font-bold text-accent-foreground",
+						children: "Become a seller"
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+				className: "text-2xl font-extrabold",
+				children: "Why sell with AutoForge"
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "mt-5 grid gap-4 md:grid-cols-3",
+				children: [
+					[
+						TrendingUp,
+						"Focused audience",
+						"Reach makers, labs and engineering teams."
+					],
+					[
+						Store,
+						"Built for technical products",
+						"Present products with rich specs and inventory."
+					],
+					[
+						Handshake,
+						"Partner support",
+						"Work with a team that understands your category."
+					]
+				].map(([Icon, title, text]) => {
+					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "rounded-lg border bg-card p-5",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Icon, { className: "size-6 text-primary" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+								className: "mt-3 font-bold",
+								children: title
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 text-sm text-muted-foreground",
+								children: text
+							})
+						]
+					}, title);
+				})
+			})] }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+				className: "text-2xl font-extrabold",
+				children: "How it works"
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ol", {
+				className: "mt-5 grid gap-4 sm:grid-cols-3",
+				children: [
+					"Apply with your business details",
+					"Our team reviews your catalog",
+					"Launch and grow with AutoForge"
+				].map((t, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+					className: "rounded-lg border bg-card p-5",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						className: "text-lg font-black text-accent",
+						children: ["0", i + 1]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 font-semibold",
+						children: t
+					})]
+				}, t))
+			})] }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+				className: "text-2xl font-extrabold",
+				children: "Frequently asked questions"
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "mt-4 space-y-3",
+				children: [
+					["Who can apply?", "Manufacturers, authorised distributors and established sellers of relevant technical products."],
+					["What happens after I apply?", "Our partnerships team reviews your application and contacts you with the next steps."],
+					["Is GST required?", "It is optional during application; compliance requirements are confirmed during onboarding."]
+				].map(([q, a]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+					className: "rounded-lg border bg-card p-4",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
+						className: "cursor-pointer font-semibold",
+						children: q
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 text-sm text-muted-foreground",
+						children: a
+					})]
+				}, q))
+			})] }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				id: "seller-form",
+				className: "rounded-xl border bg-card p-5 sm:p-8",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "text-2xl font-extrabold",
+						children: "Become a seller"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-sm text-muted-foreground",
+						children: "Tell us about your business and product range."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+						onSubmit: submit,
+						className: "mt-6 grid gap-4 sm:grid-cols-2",
+						children: [
+							fields.map((label) => {
+								const name = label.toLowerCase().replaceAll(" ", "").replace("(optional)", "").replace("number", "");
+								return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+									className: "text-sm font-semibold",
+									children: [label, /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+										required: !label.includes("optional"),
+										name: name === "fullname" ? "fullName" : name === "companyname" ? "companyName" : name === "phonenumber" ? "phone" : name,
+										type: label === "Email" ? "email" : "text",
+										className: "mt-1.5 w-full rounded-md border bg-background px-3 py-2 font-normal"
+									})]
+								}, label);
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+								className: "sm:col-span-2 text-sm font-semibold",
+								children: ["Business Description", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
+									required: true,
+									name: "description",
+									rows: 4,
+									className: "mt-1.5 w-full rounded-md border bg-background px-3 py-2 font-normal"
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+								className: "sm:col-span-2 text-sm font-semibold",
+								children: ["Message", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
+									required: true,
+									name: "message",
+									rows: 3,
+									className: "mt-1.5 w-full rounded-md border bg-background px-3 py-2 font-normal"
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+								className: "sm:col-span-2 flex items-center gap-2 text-sm",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+									checked: accepted,
+									onChange: (e) => setAccepted(e.target.checked),
+									type: "checkbox"
+								}), " I agree to the seller terms and conditions."]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								disabled: saving,
+								className: "sm:col-span-2 inline-flex w-fit items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, { className: "size-4" }), saving ? "Submitting…" : "Submit application"]
+							})
+						]
+					})
+				]
+			})
+		]
+	}) });
+}
+//#endregion
+export { SellOnAutoForge as component };
