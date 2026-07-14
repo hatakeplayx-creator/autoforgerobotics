@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "node ./node_modules/vite/bin/vite.js build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "api:dev": "tsx backend/src/app.ts",
-    "api:start": "node backend/dist/app.js",
+    "api:start": "node backend/dist/src/app.js",
     "api:build": "tsc -p backend/tsconfig.json",
     "prisma:seed": "tsx backend/prisma/seed.ts",
     "prisma:import-original-catalog": "tsx backend/prisma/import-original-catalog.ts",
