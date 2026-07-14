@@ -9,7 +9,6 @@ import {
 } from "@/services/adminApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Toaster } from "@/components/ui/sonner";
 import { Search } from "lucide-react";
 
 const STATUS_OPTIONS = ["ALL", "NEW", "CONTACTED", "APPROVED", "REJECTED", "ON_HOLD"] as const;
@@ -110,7 +109,6 @@ export default function EnquiriesSection({ token }: { token?: string }) {
 
   return (
     <section className="rounded-lg border bg-card">
-      <Toaster />
       <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
         <div>
           <h2 className="font-semibold">Seller enquiries</h2>

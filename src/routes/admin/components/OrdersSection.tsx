@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchOrders, updateOrderStatus, type AdminOrder } from "@/services/adminApi";
 import { toast } from "sonner";
-import { Toaster } from "@/components/ui/sonner";
 import { Search } from "lucide-react";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -62,7 +61,6 @@ export default function OrdersSection({ token }: { token?: string }) {
 
   return (
     <div className="space-y-6">
-      <Toaster />
       <div className="rounded-lg border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
           <div>

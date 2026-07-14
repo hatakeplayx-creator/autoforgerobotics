@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { fetchHomepageBlocks, updateHomepageBlock, type AdminHomepageBlock } from "@/services/adminApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Toaster } from "@/components/ui/sonner";
 
 const BLOCK_LABELS: Record<string, string> = {
   hero_banners: "Hero banner, text and buttons",
@@ -68,7 +67,6 @@ export default function CmsSection({ token }: { token?: string }) {
 
   return (
     <div className="space-y-6">
-      <Toaster />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Homepage CMS</h2>

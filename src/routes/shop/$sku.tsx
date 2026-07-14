@@ -23,7 +23,6 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/shop/$sku")({
   component: ProductDetailsPage,
@@ -266,12 +265,10 @@ function ProductDetailsPage() {
 
   const handleAddToCart = () => {
     addToCart(cartCompatibleProduct, quantity);
-    toast.success(`Added ${quantity}x "${product.name}" to your cart.`);
   };
 
   const handleBuyNow = () => {
     addToCart(cartCompatibleProduct, quantity);
-    toast.success(`Proceeding to checkout with ${quantity}x "${product.name}".`);
     navigate({ to: "/cart" });
   };
 
@@ -301,7 +298,6 @@ function ProductDetailsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Toaster position="top-right" closeButton richColors />
       <AnnouncementBar />
       <TopBar />
       <StoreHeader />

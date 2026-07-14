@@ -19,7 +19,6 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Toaster } from "@/components/ui/sonner";
 
 const shopSearchSchema = z.object({
   q: z.string().catch("").optional(),
@@ -318,7 +317,6 @@ function ShopPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Toaster position="top-right" closeButton richColors />
       <AnnouncementBar />
       <TopBar />
       <StoreHeader />

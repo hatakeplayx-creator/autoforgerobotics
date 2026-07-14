@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchDashboard, type DashboardMetrics } from "@/services/adminApi";
 import { toast } from "sonner";
-import { Toaster } from "@/components/ui/sonner";
 
 const statusStyle: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-800",
@@ -43,7 +42,6 @@ export default function DashboardSection({ token }: { token?: string }) {
   if (loading) {
     return (
       <>
-        <Toaster />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <SkeletonCard />
           <SkeletonCard />
@@ -86,7 +84,6 @@ export default function DashboardSection({ token }: { token?: string }) {
 
   return (
     <>
-      <Toaster />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg border bg-card p-5">

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/useCart";
 import { CheckCircle } from "lucide-react";
+import { formatPrice } from "@/lib/store-data";
 
 export const Route = createFileRoute("/checkout")({
   component: CheckoutPage,
@@ -57,7 +58,7 @@ function CheckoutPage() {
                     <p className="font-medium">{item.product.name}</p>
                     <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                   </div>
-                  <p className="font-medium">₹{(item.product.price * item.quantity).toFixed(2)}</p>
+                  <p className="font-medium">{formatPrice(item.product.price * item.quantity)}</p>
                 </div>
               ))}
             </CardContent>
@@ -72,15 +73,15 @@ function CheckoutPage() {
             <CardContent className="space-y-4">
               <div className="flex justify-between">
                 <p>Subtotal</p>
-                <p>₹{subtotal.toFixed(2)}</p>
+                <p>{formatPrice(subtotal)}</p>
               </div>
               <div className="flex justify-between">
                 <p>Tax (GST)</p>
-                <p>₹{tax.toFixed(2)}</p>
+                <p>{formatPrice(tax)}</p>
               </div>
               <div className="flex justify-between border-t pt-4 font-bold text-lg">
                 <p>Total</p>
-                <p>₹{total.toFixed(2)}</p>
+                <p>{formatPrice(total)}</p>
               </div>
               <Button
                 className="w-full"

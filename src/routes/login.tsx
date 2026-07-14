@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { StorePageShell } from "@/components/store/StorePageShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,7 +47,6 @@ function LoginPage() {
 
   return (
     <StorePageShell>
-      <Toaster position="top-right" closeButton richColors />
       <section className="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm">
         <h1 className="text-2xl font-extrabold text-foreground">Login</h1>
         <p className="mt-1 text-sm text-muted-foreground">Use your account to continue shopping and track orders.</p>

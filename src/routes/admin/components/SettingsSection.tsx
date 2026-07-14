@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchSettings, saveSetting, type AdminSetting } from "@/services/adminApi";
 import { toast } from "sonner";
-import { Toaster } from "@/components/ui/sonner";
 
 interface SettingField {
   key: string;
@@ -92,7 +91,6 @@ export default function SettingsSection({ token }: { token?: string }) {
 
   return (
     <div className="space-y-6">
-      <Toaster />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Settings</h2>

@@ -16,7 +16,6 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { toast } from "sonner";
-import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/cart")({
   component: CartPage,
@@ -97,7 +96,6 @@ function CartPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Toaster position="top-right" closeButton richColors />
       <AnnouncementBar />
       <TopBar />
       <StoreHeader />

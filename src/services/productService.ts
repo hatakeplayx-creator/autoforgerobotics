@@ -2,6 +2,8 @@ import { apiFetch } from "@/services/api";
 import type { Category, HeroBanner, Product, ServiceItem } from "@/types/store";
 
 type HomepageBlock = { id: string; key: string; content: unknown };
+let categoriesRequest: Promise<Category[]> | null = null;
+let homepageBlocksRequest: Promise<HomepageBlock[]> | null = null;
 
 function apiAsset(url?: string) {
   if (!url || /^https?:\/\//.test(url)) return url;
@@ -37,11 +39,26 @@ export async function getProductBySku(sku: string): Promise<Product | undefined>
 }
 
 export async function getCategories(): Promise<Category[]> {
-  const categories = await apiFetch<Category[]>("/api/categories");
-  return categories.map((category) => ({ ...category, image: category.image ? { ...category.image, url: apiAsset(category.image.url) ?? "" } : undefined }));
+  if (!categoriesRequest) {
+    categoriesRequest = apiFetch<Category[]>("/api/categories")
+      .then((categories) => categories.map((category) => ({ ...category, image: category.image ? { ...category.image, url: apiAsset(category.image.url) ?? "" } : undefined })))
+      .catch((error: unknown) => {
+        categoriesRequest = null;
+        throw error;
+      });
+  }
+  return categoriesRequest;
 }
 
-async function getBlocks(): Promise<HomepageBlock[]> { return apiFetch<HomepageBlock[]>("/api/homepage"); }
+async function getBlocks(): Promise<HomepageBlock[]> {
+  if (!homepageBlocksRequest) {
+    homepageBlocksRequest = apiFetch<HomepageBlock[]>("/api/homepage").catch((error: unknown) => {
+      homepageBlocksRequest = null;
+      throw error;
+    });
+  }
+  return homepageBlocksRequest;
+}
 
 export async function getHeroBanners(): Promise<HeroBanner[]> {
   const block = (await getBlocks()).find((item) => item.key === "hero");

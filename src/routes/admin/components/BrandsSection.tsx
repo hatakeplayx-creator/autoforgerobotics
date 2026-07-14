@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { fetchBrands, createBrand, updateBrand, deleteBrand, type AdminBrand } from "@/services/adminApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Toaster } from "@/components/ui/sonner";
 import { Search } from "lucide-react";
 
 const emptyForm = { name: "", logoUrl: "", sortOrder: 0, active: true };
@@ -66,7 +65,6 @@ export default function BrandsSection({ token }: { token?: string }) {
 
   return (
     <section className="rounded-lg border bg-card">
-      <Toaster />
       <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
         <div>
           <h2 className="font-semibold">Brand collaborations</h2>

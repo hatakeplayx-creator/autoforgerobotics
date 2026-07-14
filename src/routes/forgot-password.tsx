@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { StorePageShell } from "@/components/store/StorePageShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,10 +21,9 @@ function ForgotPasswordPage() {
 
   return (
     <StorePageShell>
-      <Toaster position="top-right" closeButton richColors />
       <section className="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm">
         <h1 className="text-2xl font-extrabold text-foreground">Forgot Password</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Enter your account email to receive a reset link (mock flow).</p>
+        <p className="mt-1 text-sm text-muted-foreground">Enter your account email to receive password-reset instructions.</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>

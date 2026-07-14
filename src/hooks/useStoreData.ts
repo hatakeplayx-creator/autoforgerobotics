@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import {
   getProducts,
   getProductBySku,
@@ -21,19 +21,20 @@ export function useProducts(filters?: {
   brand?: string;
   sortBy?: string;
 }) {
+  const deferredFilters = useDeferredValue(filters);
   const [state, setState] = useState<QueryState<Product[]>>({
     data: null,
     loading: true,
     error: null,
   });
 
-  const filterString = JSON.stringify(filters);
+  const filterString = JSON.stringify(deferredFilters);
 
   useEffect(() => {
     let active = true;
     setState((prev) => ({ ...prev, loading: true }));
 
-    getProducts(filters)
+    getProducts(deferredFilters)
       .then((products) => {
         if (!active) return;
         setState({ data: products, loading: false, error: null });

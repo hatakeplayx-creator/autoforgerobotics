@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from "react";
 import { fetchMedia, uploadMedia, deleteMedia, updateMedia, type AdminMedia } from "@/services/adminApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Toaster } from "@/components/ui/sonner";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
@@ -88,7 +87,6 @@ export default function MediaSection({ token }: { token?: string }) {
 
   return (
     <div className="space-y-6">
-      <Toaster />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Media Library</h2>

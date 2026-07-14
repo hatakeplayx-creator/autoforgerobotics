@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { StorePageShell } from "@/components/store/StorePageShell";
 import { toast } from "sonner";
@@ -30,7 +29,6 @@ function ContactPage() {
 
   return (
     <StorePageShell>
-      <Toaster position="top-right" closeButton richColors />
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-extrabold text-foreground">Contact Us</h1>

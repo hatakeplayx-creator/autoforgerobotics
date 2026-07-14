@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Heart, ShoppingCart, Star } from "lucide-react";
 import { formatPrice } from "@/lib/store-data";
-import { toast } from "sonner";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import type { Product } from "@/types/store";
@@ -59,6 +58,7 @@ export function ProductCard({ product }: { product: Product }) {
           width={512}
           height={512}
           loading="lazy"
+          onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/assets/cat-dev-boards.jpg"; }}
           className="aspect-square w-full rounded object-cover transition-transform duration-300 group-hover:scale-[1.02]"
         />
       </Link>

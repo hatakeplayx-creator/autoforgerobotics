@@ -5,11 +5,15 @@ import { toast } from "sonner";
 // Map footer link to route
 const footerLinkToRoute: Record<string, string> = {
   "About Us": "/about",
+  Careers: "/careers",
+  Blogs: "/blogs",
   "Forum": "/forum",
   "Contact Us": "/contact",
   "My Account": "/profile",
+  "Track Order": "/orders",
   "Returns & Refunds": "/returns",
   "Shipping Policy": "/shipping",
+  "Bulk Enquiry": "/bulk-enquiry",
   "FAQ": "/faq",
   "Privacy Policy": "/privacy",
   "Terms of Service": "/terms",

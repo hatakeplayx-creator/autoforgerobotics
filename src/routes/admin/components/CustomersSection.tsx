@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchCustomers, type AdminCustomer } from "@/services/adminApi";
 import { toast } from "sonner";
-import { Toaster } from "@/components/ui/sonner";
 import { Search } from "lucide-react";
 
 export default function CustomersSection({ token }: { token?: string }) {
@@ -26,7 +25,6 @@ export default function CustomersSection({ token }: { token?: string }) {
 
   return (
     <section className="rounded-lg border bg-card">
-      <Toaster />
       <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
         <div>
           <h2 className="font-semibold">Customers</h2>

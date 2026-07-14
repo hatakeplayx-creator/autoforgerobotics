@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Cog, Heart, ShoppingCart, User, Search, Trash, ArrowRight, X, Plus, Minus } from "lucide-react";
-import { toast } from "sonner";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useWishlist } from "@/hooks/useWishlist";
@@ -216,7 +215,6 @@ export function StoreHeader() {
                         <button
                           onClick={() => {
                             setIsCartOpen(false);
-                            toast.success("Proceeding to Checkout!");
                             navigate({ to: "/cart" });
                           }}
                           className="flex items-center justify-center gap-1 rounded-lg bg-primary py-2 text-xs font-bold text-primary-foreground hover:bg-primary/95 cursor-pointer transition-colors shadow-sm"

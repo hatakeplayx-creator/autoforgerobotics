@@ -1,0 +1,4 @@
+import { z } from "zod";
+export const productInput = z.object({ name: z.string().min(2).max(250), slug: z.string().regex(/^[a-z0-9-]+$/), sku: z.string().min(2).max(100), description: z.string().min(1), price: z.coerce.number().nonnegative(), compareAtPrice: z.coerce.number().nonnegative().nullable().optional(), stockQuantity: z.coerce.number().int().nonnegative().default(0), categoryId: z.string().cuid().nullable().optional(), brand: z.string().max(120).nullable().optional(), featured: z.boolean().default(false) });
+export const categoryInput = z.object({ name: z.string().min(2).max(120), slug: z.string().regex(/^[a-z0-9-]+$/), imageId: z.string().cuid().nullable().optional() });
+export const brandInput = z.object({ name: z.string().min(2).max(120), logoUrl: z.string().min(1), sortOrder: z.coerce.number().int().default(0), active: z.boolean().default(true) });

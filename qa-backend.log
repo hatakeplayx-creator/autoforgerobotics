@@ -1,0 +1,5 @@
+
+> api:dev
+> tsx backend/src/app.ts
+
+AutoForge API listening on 4000

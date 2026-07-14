@@ -1,8 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
-import { fetchProducts, createProduct, updateProduct, deleteProduct, type AdminProduct } from "@/services/adminApi";
+import { fetchCategories, fetchProducts, createProduct, updateProduct, deleteProduct, type AdminCategory, type AdminProduct } from "@/services/adminApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Toaster } from "@/components/ui/sonner";
 import { Search } from "lucide-react";
 import { ApiError } from "@/services/api";
 
@@ -66,6 +65,7 @@ function Input({ label, value, onChange, type = "text", placeholder, required }:
 
 export default function ProductsSection({ token }: { token?: string }) {
   const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
@@ -90,6 +90,9 @@ export default function ProductsSection({ token }: { token?: string }) {
   }, [token]);
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
+  useEffect(() => {
+    void fetchCategories(token).then((response) => setCategories(response.value)).catch(() => setCategories([]));
+  }, [token]);
 
   const openAddModal = () => {
     setEditId(null);
@@ -279,7 +282,7 @@ export default function ProductsSection({ token }: { token?: string }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Input label="SKU" value={formData.sku} onChange={(v) => setFormData((p) => ({ ...p, sku: v }))} required />
-              <Input label="Category ID (optional)" value={formData.categoryId} onChange={(v) => setFormData((p) => ({ ...p, categoryId: v }))} />
+              <label className="text-sm font-medium">Category<select value={formData.categoryId} onChange={(event) => setFormData((current) => ({ ...current, categoryId: event.target.value }))} className="mt-1.5 w-full rounded-md border bg-background px-3 py-2 text-sm"><option value="">Uncategorised</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
             </div>
             <label className="text-sm font-medium">
               Description
@@ -347,7 +350,6 @@ export default function ProductsSection({ token }: { token?: string }) {
         </DialogContent>
       </Dialog>
 
-      <Toaster />
     </>
   );
 }

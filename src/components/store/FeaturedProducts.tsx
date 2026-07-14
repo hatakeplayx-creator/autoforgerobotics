@@ -4,9 +4,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@tanstack/react-router";
 
 export function FeaturedProducts() {
-  const { data: products, loading } = useProducts();
+  const { data: products, loading, error } = useProducts();
 
-  if (loading || !products) {
+  if (loading) {
     return (
       <section className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between gap-4">
@@ -32,8 +32,14 @@ export function FeaturedProducts() {
     );
   }
 
+  if (error) {
+    return <section className="mx-auto max-w-7xl px-4 py-8"><div className="rounded-lg border border-dashed border-border bg-card px-5 py-8 text-center"><h2 className="text-lg font-bold text-foreground">Featured products are temporarily unavailable</h2><p className="mt-1 text-sm text-muted-foreground">Please refresh the page to try again.</p></div></section>;
+  }
+
   // Slice first 6 products for the homepage
-  const displayProducts = products.slice(0, 6);
+  const displayProducts = (products ?? []).filter((product) => product.featured).slice(0, 6);
+
+  if (!displayProducts.length) return null;
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8">

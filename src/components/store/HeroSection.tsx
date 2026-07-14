@@ -4,7 +4,6 @@ import { CircuitBoard, Printer, Zap, BatteryCharging } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useHeroBanners, useStoreMetadata } from "@/hooks/useStoreData";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
 
 const serviceIcons: Record<string, any> = {
   "PCB Manufacturing": CircuitBoard,
@@ -21,8 +20,8 @@ const serviceToCategory: Record<string, string> = {
 };
 
 export function HeroSection() {
-  const { data: banners, loading: bannersLoading } = useHeroBanners();
-  const { data: meta, loading: metaLoading } = useStoreMetadata();
+  const { data: banners, loading: bannersLoading, error: bannersError } = useHeroBanners();
+  const { data: meta, loading: metaLoading, error: metadataError } = useStoreMetadata();
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
   const [selected, setSelected] = useState(0);
@@ -41,7 +40,7 @@ export function HeroSection() {
     };
   }, [emblaApi, onSelect]);
 
-  if (bannersLoading || metaLoading || !banners || !meta) {
+  if (bannersLoading || metaLoading) {
     return (
       <section className="mx-auto max-w-7xl px-4 py-6">
         <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
@@ -54,6 +53,10 @@ export function HeroSection() {
         </div>
       </section>
     );
+  }
+
+  if (bannersError || metadataError || !banners?.length || !meta) {
+    return <section className="mx-auto max-w-7xl px-4 py-6"><div className="rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center"><h2 className="text-xl font-bold text-foreground">Homepage content is temporarily unavailable</h2><p className="mt-2 text-sm text-muted-foreground">Please refresh the page to try again.</p></div></section>;
   }
 
   return (
@@ -89,6 +92,7 @@ export function HeroSection() {
                     width={1920}
                     height={512}
                     loading={i === 0 ? "eager" : "lazy"}
+                    onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/assets/hero-1.jpg"; }}
                     className="h-full w-full object-cover"
                   />
                 </div>

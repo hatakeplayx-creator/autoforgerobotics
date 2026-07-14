@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/admin/login")({ component: AdminLogin });
 
@@ -26,7 +25,6 @@ function AdminLogin() {
   }
 
   return <main className="flex min-h-screen items-center justify-center bg-muted px-4">
-    <Toaster position="top-right" closeButton richColors />
     <form onSubmit={submit} className="w-full max-w-md rounded-xl border bg-card p-8 shadow-sm">
       <div className="mb-7 flex size-12 items-center justify-center rounded-lg bg-primary text-primary-foreground"><ShieldCheck /></div>
       <h1 className="text-2xl font-bold">Admin portal</h1>

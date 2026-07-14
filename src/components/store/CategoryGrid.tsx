@@ -2,9 +2,9 @@ import { useCategories } from "@/hooks/useStoreData";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function CategoryGrid() {
-  const { data: categoriesList, loading } = useCategories();
+  const { data: categoriesList, loading, error } = useCategories();
 
-  if (loading || !categoriesList) {
+  if (loading) {
     return (
       <section className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between gap-4">
@@ -25,6 +25,14 @@ export function CategoryGrid() {
         </div>
       </section>
     );
+  }
+
+  if (error) {
+    return <section className="mx-auto max-w-7xl px-4 py-8"><div className="rounded-lg border border-dashed border-border bg-card px-5 py-8 text-center"><h2 className="text-lg font-bold text-foreground">Categories are temporarily unavailable</h2><p className="mt-1 text-sm text-muted-foreground">Please refresh the page to try again.</p></div></section>;
+  }
+
+  if (!categoriesList?.length) {
+    return <section className="mx-auto max-w-7xl px-4 py-8"><div className="rounded-lg border border-dashed border-border bg-card px-5 py-8 text-center"><h2 className="text-lg font-bold text-foreground">Categories are being updated</h2><p className="mt-1 text-sm text-muted-foreground">Browse the full catalog while new categories are added.</p><Link to="/shop" className="mt-4 inline-flex rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary hover:text-primary-foreground">Browse products</Link></div></section>;
   }
 
   return (
@@ -52,6 +60,7 @@ export function CategoryGrid() {
                 width={640}
                 height={640}
                 loading="lazy"
+                onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/assets/cat-components.jpg"; }}
                 className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>

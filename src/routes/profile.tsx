@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { StorePageShell } from "@/components/store/StorePageShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,7 +36,6 @@ function ProfilePage() {
 
   return (
     <StorePageShell>
-      <Toaster position="top-right" closeButton richColors />
       <section className="mx-auto w-full max-w-2xl rounded-xl border border-border bg-card p-6 shadow-sm">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-4">
           <div>
