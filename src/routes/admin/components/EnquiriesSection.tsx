@@ -14,11 +14,11 @@ import { Search } from "lucide-react";
 const STATUS_OPTIONS = ["ALL", "NEW", "CONTACTED", "APPROVED", "REJECTED", "ON_HOLD"] as const;
 
 const statusBadge: Record<string, string> = {
-  NEW: "bg-blue-100 text-blue-800",
-  CONTACTED: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-green-100 text-green-800",
-  REJECTED: "bg-red-100 text-red-800",
-  ON_HOLD: "bg-gray-100 text-gray-600",
+  NEW: "bg-info/10 text-info",
+  CONTACTED: "bg-warning/15 text-warning-foreground",
+  APPROVED: "bg-success/10 text-success",
+  REJECTED: "bg-destructive/10 text-destructive",
+  ON_HOLD: "bg-muted text-muted-foreground",
 };
 
 export default function EnquiriesSection({ token }: { token?: string }) {
@@ -167,7 +167,7 @@ export default function EnquiriesSection({ token }: { token?: string }) {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusBadge[enq.status] ?? "bg-gray-100 text-gray-600"}`}>
+                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusBadge[enq.status] ?? "bg-muted text-muted-foreground"}`}>
                     {enq.status.replace("_", " ")}
                   </span>
                   {(enq.status === "NEW" || enq.status === "CONTACTED" || enq.status === "ON_HOLD") && (
@@ -176,7 +176,7 @@ export default function EnquiriesSection({ token }: { token?: string }) {
                     </button>
                   )}
                   {enq.status !== "REJECTED" && (
-                    <button onClick={() => handleStatus(enq.id, "REJECTED")} className="text-sm text-red-600 hover:underline">
+                    <button onClick={() => handleStatus(enq.id, "REJECTED")} className="text-sm text-destructive hover:underline">
                       Reject
                     </button>
                   )}

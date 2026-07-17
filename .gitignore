@@ -1,0 +1,32 @@
+# Dependencies and generated output
+node_modules/
+dist/
+backend/dist/
+.output/
+.vinxi/
+.tanstack/
+.nitro/
+.wrangler/
+
+# Local runtime and test artifacts
+.local/
+*.log
+*.local
+.env
+.env.*
+!.env.example
+
+# Keep uploaded application data out of Git while preserving the directory
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Editors and operating systems
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

@@ -42,7 +42,7 @@ const PRICE_RANGES = [
   { label: "₹10,000 & Above", min: 10000, max: 999999 },
 ];
 
-import type { Product } from "@/types/store";
+import type { Product, ShopSearch } from "@/types/store";
 
 function getProductBrand(product: Product) {
   if (product.brand) return product.brand;
@@ -95,7 +95,7 @@ function ShopPage() {
   }) => {
     navigate({
       to: "/shop",
-      search: (prev: any) => {
+      search: (prev: ShopSearch) => {
         const next = { ...prev };
         if (updates.q !== undefined) next.q = updates.q || undefined;
         if (updates.category !== undefined) next.category = updates.category || undefined;

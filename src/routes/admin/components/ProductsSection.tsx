@@ -42,9 +42,9 @@ function generateSlug(name: string): string {
 }
 
 function statusBadge(product: AdminProduct): { text: string; className: string } {
-  if (product.stockQuantity <= 0) return { text: "Out of Stock", className: "rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-800" };
+  if (product.stockQuantity <= 0) return { text: "Out of Stock", className: "rounded-full bg-destructive/10 px-2 py-0.5 text-xs text-destructive" };
   if (product.stockQuantity <= product.lowStockThreshold) return { text: "Low Stock", className: "rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800" };
-  return { text: "In Stock", className: "rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800" };
+  return { text: "In Stock", className: "rounded-full bg-success/10 px-2 py-0.5 text-xs text-success" };
 }
 
 function Input({ label, value, onChange, type = "text", placeholder, required }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; required?: boolean }) {

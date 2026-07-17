@@ -5,6 +5,7 @@ import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useWishlist } from "@/hooks/useWishlist";
 import { formatPrice } from "@/lib/store-data";
+import type { ShopSearch } from "@/types/store";
 
 export function StoreHeader() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,7 +39,7 @@ export function StoreHeader() {
     
     navigate({
       to: "/shop",
-      search: (prev: any) => ({
+      search: (prev: ShopSearch) => ({
         ...prev,
         q: searchQuery,
       }),
@@ -47,11 +48,11 @@ export function StoreHeader() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl h-16 items-center justify-between gap-4 px-4">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent shrink-0">
-            <Cog className="h-5 w-5 text-accent-foreground animate-spin-slow" />
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary shadow-[var(--shadow-soft)]">
+            <Cog className="h-5 w-5 text-primary-foreground animate-spin-slow" />
           </span>
           <span className="leading-none select-none">
             <span className="block text-lg font-black tracking-tight text-primary">AUTOFORGE</span>
@@ -73,7 +74,7 @@ export function StoreHeader() {
         </form>
 
         {/* Header Right Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 sm:gap-3">
           {/* Mobile Search Button */}
           <button
             className="block md:hidden p-2 text-muted-foreground hover:text-primary transition-colors"
@@ -82,7 +83,7 @@ export function StoreHeader() {
               if (q) {
                 navigate({
                   to: "/shop",
-                  search: (prev: any) => ({ ...prev, q }),
+                  search: (prev: ShopSearch) => ({ ...prev, q }),
                 });
               }
             }}
@@ -121,7 +122,7 @@ export function StoreHeader() {
 
             {/* Mini Cart Dropdown Popover */}
             {isCartOpen && (
-              <div className="absolute right-0 mt-3 w-80 rounded-xl border border-border bg-card p-4 shadow-xl ring-1 ring-black/5 animate-in fade-in slide-in-from-top-3 duration-200">
+              <div className="absolute right-0 mt-3 w-80 rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-raised)] animate-in fade-in slide-in-from-top-3 duration-200">
                 <div className="flex items-center justify-between border-b border-border pb-3">
                   <h3 className="text-sm font-bold text-foreground">Shopping Cart ({itemCount})</h3>
                   <button 
@@ -245,7 +246,7 @@ export function StoreHeader() {
             </button>
 
             {isAccountOpen && (
-              <div className="absolute right-0 mt-3 w-44 rounded-xl border border-border bg-card p-2 shadow-xl ring-1 ring-black/5 animate-in fade-in slide-in-from-top-3 duration-200">
+              <div className="absolute right-0 mt-3 w-44 rounded-xl border border-border bg-card p-2 shadow-[var(--shadow-raised)] animate-in fade-in slide-in-from-top-3 duration-200">
                 {isAuthenticated ? (
                   <>
                     <Link

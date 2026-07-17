@@ -11,17 +11,18 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import nodemailer from "nodemailer";
 import Razorpay from "razorpay";
-import { PrismaClient, Prisma, Role, OrderStatus, InventoryAction, EnquiryStatus, PaymentStatus, PaymentProvider, ShipmentStatus } from "@prisma/client";
 import { z } from "zod";
 import { createOTPProvider, generateOTP } from "./providers/otp.js";
+import { connectMongoDB } from "./mongodb/connection.js";
+import { mongo, Role, OrderStatus, InventoryAction, EnquiryStatus, PaymentStatus, PaymentProvider, ShipmentStatus, type ProductRow } from "./mongodb/database.js";
 
-const env = z.object({ DATABASE_URL:z.string().url(), JWT_SECRET:z.string().min(32), CORS_ORIGIN:z.string().default("http://localhost:3000"), PORT:z.coerce.number().default(4000), UPLOAD_DIR:z.string().default("backend/uploads"), SMTP_HOST:z.string().optional(), SMTP_PORT:z.coerce.number().default(587), SMTP_USER:z.string().optional(), SMTP_PASS:z.string().optional(), MAIL_FROM:z.string().email().optional(), RAZORPAY_KEY_ID:z.string().optional(), RAZORPAY_KEY_SECRET:z.string().optional(), GSTIN:z.string().optional() }).parse(process.env);
+const env = z.object({ MONGODB_URI:z.string().min(1), MONGODB_DB_NAME:z.string().min(1).default("autoforge"), JWT_SECRET:z.string().min(32), CORS_ORIGIN:z.string().default("http://localhost:3000"), PORT:z.coerce.number().default(4000), UPLOAD_DIR:z.string().default("backend/uploads"), SMTP_HOST:z.string().optional(), SMTP_PORT:z.coerce.number().default(587), SMTP_USER:z.string().optional(), SMTP_PASS:z.string().optional(), MAIL_FROM:z.string().email().optional(), RAZORPAY_KEY_ID:z.string().optional(), RAZORPAY_KEY_SECRET:z.string().optional(), GSTIN:z.string().optional() }).parse(process.env);
 
 // Initialize Razorpay
 const razorpay = env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET 
   ? new Razorpay({ key_id: env.RAZORPAY_KEY_ID, key_secret: env.RAZORPAY_KEY_SECRET }) 
   : undefined;
-const prisma = new PrismaClient(); const app = express(); const uploadDir = path.resolve(env.UPLOAD_DIR);
+const app = express(); const uploadDir = path.resolve(env.UPLOAD_DIR);
 const upload = multer({ storage:multer.memoryStorage(), limits:{ fileSize:10*1024*1024, files:10 }, fileFilter:(_r,f,cb)=>cb(null,/^image\/(jpeg|png|webp|gif|svg\+xml)$/.test(f.mimetype)) });
 const transporter = env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS ? nodemailer.createTransport({host:env.SMTP_HOST,port:env.SMTP_PORT,secure:env.SMTP_PORT===465,auth:{user:env.SMTP_USER,pass:env.SMTP_PASS}}) : undefined;
 const tokenHash=(token:string)=>createHash("sha256").update(token).digest("hex");
@@ -29,7 +30,7 @@ const publicUser=(u:{id:string;email:string;name:string;phone?:string|null;role:
 const asyncRoute=(fn:(req:express.Request,res:express.Response)=>Promise<unknown>)=>(req:express.Request,res:express.Response,next:express.NextFunction)=>void fn(req,res).catch(next);
 async function email(to:string,subject:string,text:string){ if(transporter && env.MAIL_FROM) await transporter.sendMail({from:env.MAIL_FROM,to,subject,text}); }
 function issueAccess(user:{id:string;role:Role}) { return jwt.sign({sub:user.id,role:user.role},env.JWT_SECRET,{expiresIn:"15m"}); }
-async function issueRefresh(userId:string){ const value=randomBytes(48).toString("base64url"); await prisma.refreshToken.create({data:{userId,tokenHash:tokenHash(value),expiresAt:new Date(Date.now()+30*864e5)}}); return value; }
+async function issueRefresh(userId:string){ const value=randomBytes(48).toString("base64url"); await mongo.refreshToken.create({data:{userId,tokenHash:tokenHash(value),expiresAt:new Date(Date.now()+30*864e5)}}); return value; }
 function auth(req:express.Request,res:express.Response,next:express.NextFunction){ try { const claims=jwt.verify(req.headers.authorization?.replace("Bearer ","")??"",env.JWT_SECRET) as {sub:string;role:Role}; req.user=claims; next(); } catch { res.status(401).json({message:"Authentication required"}); } }
 function admin(req:express.Request,res:express.Response,next:express.NextFunction){ if(req.user?.role!==Role.ADMIN) return res.status(403).json({message:"Admin access required"}); next(); }
 const idSchema=z.object({id:z.string().cuid()}); const orderStatus=z.nativeEnum(OrderStatus); const slug=z.string().min(2).max(120).regex(/^[a-z0-9-]+$/);
@@ -49,7 +50,7 @@ app.use(helmet({crossOriginResourcePolicy:{policy:"cross-origin"}})); app.use(co
 app.post("/api/auth/otp/send", rateLimit({windowMs: 15*60e3, max: 10}), asyncRoute(async (req, res) => {
   const { phone } = z.object({ phone: z.string().min(10).max(15) }).parse(req.body);
   const normalizedPhone = phone.replace(/\D/g, "");
-  const settings = await prisma.setting.findMany();
+  const settings = await mongo.setting.findMany();
   const otpProvider = createOTPProvider(settings);
   
   // Get OTP config from settings
@@ -62,12 +63,12 @@ app.post("/api/auth/otp/send", rateLimit({windowMs: 15*60e3, max: 10}), asyncRou
   const maxAttempts = Number(getSetting("OTP_MAX_ATTEMPTS", 5));
 
   // Invalidate any existing OTPs for this phone
-  await prisma.oTP.deleteMany({ where: { phone: normalizedPhone, usedAt: null } });
+  await mongo.oTP.deleteMany({ where: { phone: normalizedPhone, usedAt: null } });
 
   // Generate and save new OTP
   const otp = generateOTP(otpLength);
   const hashedOtp = tokenHash(otp);
-  await prisma.oTP.create({
+  await mongo.oTP.create({
     data: {
       phone: normalizedPhone,
       otp: hashedOtp,
@@ -84,11 +85,11 @@ app.post("/api/auth/otp/send", rateLimit({windowMs: 15*60e3, max: 10}), asyncRou
 app.post("/api/auth/otp/verify", rateLimit({windowMs: 15*60e3, max: 20}), asyncRoute(async (req, res) => {
   const { phone, otp, name: newUserName } = z.object({ phone: z.string().min(10).max(15), otp: z.string().min(4).max(8), name: z.string().min(2).optional() }).parse(req.body);
   const normalizedPhone = phone.replace(/\D/g, "");
-  const settings = await prisma.setting.findMany();
+  const settings = await mongo.setting.findMany();
   const maxAttempts = Number(settings.find(s => s.key === "OTP_MAX_ATTEMPTS")?.value ?? 5);
 
   // Find OTP record
-  const otpRecord = await prisma.oTP.findFirst({
+  const otpRecord = await mongo.oTP.findFirst({
     where: {
       phone: normalizedPhone,
       usedAt: null,
@@ -109,7 +110,7 @@ app.post("/api/auth/otp/verify", rateLimit({windowMs: 15*60e3, max: 20}), asyncR
 
   // Check expiry
   if (otpRecord.expiresAt < new Date()) {
-    await prisma.oTP.update({ where: { id: otpRecord.id }, data: { attempts: { increment: 1 } } });
+    await mongo.oTP.update({ where: { id: otpRecord.id }, data: { attempts: { increment: 1 } } });
     res.status(400).json({ message: "OTP expired. Please request a new OTP" });
     return;
   }
@@ -117,20 +118,20 @@ app.post("/api/auth/otp/verify", rateLimit({windowMs: 15*60e3, max: 20}), asyncR
   // Verify OTP
   const hashedOtp = tokenHash(otp);
   if (otpRecord.otp !== hashedOtp) {
-    await prisma.oTP.update({ where: { id: otpRecord.id }, data: { attempts: { increment: 1 } } });
+    await mongo.oTP.update({ where: { id: otpRecord.id }, data: { attempts: { increment: 1 } } });
     res.status(400).json({ message: "Invalid OTP" });
     return;
   }
 
   // Mark OTP as used
-  await prisma.oTP.update({ where: { id: otpRecord.id }, data: { usedAt: new Date() } });
+  await mongo.oTP.update({ where: { id: otpRecord.id }, data: { usedAt: new Date() } });
 
   // Find or create user
-  let user = await prisma.user.findUnique({ where: { phone: normalizedPhone } });
+  let user = await mongo.user.findUnique({ where: { phone: normalizedPhone } });
   
   if (!user) {
     // Create new user
-    user = await prisma.user.create({
+    user = await mongo.user.create({
       data: {
         phone: normalizedPhone,
         name: newUserName || "Customer",
@@ -152,37 +153,37 @@ app.post("/api/auth/otp/verify", rateLimit({windowMs: 15*60e3, max: 20}), asyncR
   });
 }));
 
-app.post("/api/auth/login",rateLimit({windowMs:15*60e3,max:10}),asyncRoute(async(req,res)=>{ const input=z.object({email:z.string().email(),password:z.string().min(8)}).parse(req.body); const user=await prisma.user.findUnique({where:{email:input.email.toLowerCase()}}); if(!user || !user.passwordHash || !(await bcrypt.compare(input.password,user.passwordHash))) {res.status(401).json({message:"Invalid credentials"});return;} res.json({accessToken:issueAccess(user),refreshToken:await issueRefresh(user.id),user:publicUser(user)}); }));
-app.post("/api/auth/refresh",asyncRoute(async(req,res)=>{ const input=z.object({refreshToken:z.string().min(20)}).parse(req.body); const row=await prisma.refreshToken.findUnique({where:{tokenHash:tokenHash(input.refreshToken)},include:{user:true}}); if(!row||row.revokedAt||row.expiresAt<new Date()){res.status(401).json({message:"Invalid refresh token"});return;} await prisma.refreshToken.update({where:{id:row.id},data:{revokedAt:new Date()}}); res.json({accessToken:issueAccess(row.user),refreshToken:await issueRefresh(row.userId),user:publicUser(row.user)}); }));
-app.post("/api/auth/logout",asyncRoute(async(req,res)=>{const input=z.object({refreshToken:z.string().min(20)}).parse(req.body);await prisma.refreshToken.updateMany({where:{tokenHash:tokenHash(input.refreshToken)},data:{revokedAt:new Date()}});res.status(204).end();}));
-app.post("/api/auth/password-reset",asyncRoute(async(req,res)=>{const {email:address}=z.object({email:z.string().email()}).parse(req.body);const user=await prisma.user.findUnique({where:{email:address.toLowerCase()}});if(user){const token=randomBytes(32).toString("base64url");await prisma.passwordReset.create({data:{userId:user.id,tokenHash:tokenHash(token),expiresAt:new Date(Date.now()+3600e3)}});await email(user.email,"Reset your AutoForge password",`Use this reset token within one hour: ${token}`);}res.status(202).json({message:"If the account exists, reset instructions were sent."});}));
-app.post("/api/auth/password-reset/confirm",asyncRoute(async(req,res)=>{const input=z.object({token:z.string().min(20),password:z.string().min(8)}).parse(req.body);const reset=await prisma.passwordReset.findUnique({where:{tokenHash:tokenHash(input.token)}});if(!reset||reset.usedAt||reset.expiresAt<new Date()){res.status(400).json({message:"Invalid or expired reset token"});return;}await prisma.$transaction([prisma.user.update({where:{id:reset.userId},data:{passwordHash:await bcrypt.hash(input.password,12)}}),prisma.passwordReset.update({where:{id:reset.id},data:{usedAt:new Date()}}),prisma.refreshToken.updateMany({where:{userId:reset.userId},data:{revokedAt:new Date()}})]);res.status(204).end();}));
+app.post("/api/auth/login",rateLimit({windowMs:15*60e3,max:10}),asyncRoute(async(req,res)=>{ const input=z.object({email:z.string().email(),password:z.string().min(8)}).parse(req.body); const user=await mongo.user.findUnique({where:{email:input.email.toLowerCase()}}); if(!user || !user.passwordHash || !(await bcrypt.compare(input.password,user.passwordHash))) {res.status(401).json({message:"Invalid credentials"});return;} res.json({accessToken:issueAccess(user),refreshToken:await issueRefresh(user.id),user:publicUser(user)}); }));
+app.post("/api/auth/refresh",asyncRoute(async(req,res)=>{ const input=z.object({refreshToken:z.string().min(20)}).parse(req.body); const row=await mongo.refreshToken.findUnique({where:{tokenHash:tokenHash(input.refreshToken)},include:{user:true}}); if(!row||row.revokedAt||row.expiresAt<new Date()){res.status(401).json({message:"Invalid refresh token"});return;} await mongo.refreshToken.update({where:{id:row.id},data:{revokedAt:new Date()}}); res.json({accessToken:issueAccess(row.user),refreshToken:await issueRefresh(row.userId),user:publicUser(row.user)}); }));
+app.post("/api/auth/logout",asyncRoute(async(req,res)=>{const input=z.object({refreshToken:z.string().min(20)}).parse(req.body);await mongo.refreshToken.updateMany({where:{tokenHash:tokenHash(input.refreshToken)},data:{revokedAt:new Date()}});res.status(204).end();}));
+app.post("/api/auth/password-reset",asyncRoute(async(req,res)=>{const {email:address}=z.object({email:z.string().email()}).parse(req.body);const user=await mongo.user.findUnique({where:{email:address.toLowerCase()}});if(user){const token=randomBytes(32).toString("base64url");await mongo.passwordReset.create({data:{userId:user.id,tokenHash:tokenHash(token),expiresAt:new Date(Date.now()+3600e3)}});await email(user.email,"Reset your AutoForge password",`Use this reset token within one hour: ${token}`);}res.status(202).json({message:"If the account exists, reset instructions were sent."});}));
+app.post("/api/auth/password-reset/confirm",asyncRoute(async(req,res)=>{const input=z.object({token:z.string().min(20),password:z.string().min(8)}).parse(req.body);const reset=await mongo.passwordReset.findUnique({where:{tokenHash:tokenHash(input.token)}});if(!reset||reset.usedAt||reset.expiresAt<new Date()){res.status(400).json({message:"Invalid or expired reset token"});return;}const passwordHash=await bcrypt.hash(input.password,12);await mongo.$transaction(async tx=>{await tx.user.update({where:{id:reset.userId},data:{passwordHash}});await tx.passwordReset.update({where:{id:reset.id},data:{usedAt:new Date()}});await tx.refreshToken.updateMany({where:{userId:reset.userId},data:{revokedAt:new Date()}});});res.status(204).end();}));
 
-app.get("/api/products",asyncRoute(async(req,res)=>{const q=z.string().optional().parse(req.query.q);res.json(await prisma.product.findMany({where:q?{OR:[{name:{contains:q,mode:"insensitive"}},{sku:{contains:q,mode:"insensitive"}}]}:undefined,include:{category:true,images:{include:{media:true},orderBy:{sortOrder:"asc"}}},orderBy:{createdAt:"desc"}}));}));
-app.get("/api/products/:id",asyncRoute(async(req,res)=>{const p=await prisma.product.findUnique({where:idSchema.parse(req.params),include:{category:true,images:{include:{media:true}},inventoryMovements:{orderBy:{createdAt:"desc"}}}});if(!p){res.status(404).json({message:"Product not found"});return;}res.json(p);}));
-app.post("/api/products",auth,admin,asyncRoute(async(req,res)=>{const d=productSchema.parse(req.body);const {imageIds,...values}=d;const productData:Prisma.ProductUncheckedCreateInput={...values,specifications:values.specifications as Prisma.InputJsonValue|undefined};const p=await prisma.$transaction(async tx=>{const product=await tx.product.create({data:productData});if(imageIds?.length)await tx.productImage.createMany({data:imageIds.map((mediaId,sortOrder)=>({productId:product.id,mediaId,sortOrder}))});if(d.stockQuantity)await tx.inventoryMovement.create({data:{productId:product.id,delta:d.stockQuantity,quantityAfter:d.stockQuantity,action:InventoryAction.RECEIVED,note:"Initial stock"}});return product;});res.status(201).json(p);}));
-app.patch("/api/products/:id",auth,admin,asyncRoute(async(req,res)=>{const d=productSchema.partial().parse(req.body);const {imageIds,...values}=d;const productData:Prisma.ProductUncheckedUpdateInput={...values,specifications:values.specifications as Prisma.InputJsonValue|undefined};const id=idSchema.parse(req.params).id;const p=await prisma.$transaction(async tx=>{const product=await tx.product.update({where:{id},data:productData});if(imageIds){await tx.productImage.deleteMany({where:{productId:id}});if(imageIds.length)await tx.productImage.createMany({data:imageIds.map((mediaId,sortOrder)=>({productId:id,mediaId,sortOrder}))});}return product;});res.json(p);})); app.delete("/api/products/:id",auth,admin,asyncRoute(async(req,res)=>{await prisma.product.delete({where:idSchema.parse(req.params)});res.status(204).end();}));
+app.get("/api/products",asyncRoute(async(req,res)=>{const q=z.string().optional().parse(req.query.q);res.json(await mongo.product.findMany({where:q?{OR:[{name:{contains:q,mode:"insensitive"}},{sku:{contains:q,mode:"insensitive"}}]}:undefined,include:{category:true,images:{include:{media:true},orderBy:{sortOrder:"asc"}}},orderBy:{createdAt:"desc"}}));}));
+app.get("/api/products/:id",asyncRoute(async(req,res)=>{const p=await mongo.product.findUnique({where:idSchema.parse(req.params),include:{category:true,images:{include:{media:true}},inventoryMovements:{orderBy:{createdAt:"desc"}}}});if(!p){res.status(404).json({message:"Product not found"});return;}res.json(p);}));
+app.post("/api/products",auth,admin,asyncRoute(async(req,res)=>{const d=productSchema.parse(req.body);const {imageIds,...values}=d;const productData:Partial<ProductRow>={...values,specifications:values.specifications};const p=await mongo.$transaction(async tx=>{const product=await tx.product.create({data:productData});if(imageIds?.length)await tx.productImage.createMany({data:imageIds.map((mediaId,sortOrder)=>({productId:product.id,mediaId,sortOrder}))});if(d.stockQuantity)await tx.inventoryMovement.create({data:{productId:product.id,delta:d.stockQuantity,quantityAfter:d.stockQuantity,action:InventoryAction.RECEIVED,note:"Initial stock"}});return product;});res.status(201).json(p);}));
+app.patch("/api/products/:id",auth,admin,asyncRoute(async(req,res)=>{const d=productSchema.partial().parse(req.body);const {imageIds,...values}=d;const productData:Partial<ProductRow>={...values,specifications:values.specifications};const id=idSchema.parse(req.params).id;const p=await mongo.$transaction(async tx=>{const product=await tx.product.update({where:{id},data:productData});if(imageIds){await tx.productImage.deleteMany({where:{productId:id}});if(imageIds.length)await tx.productImage.createMany({data:imageIds.map((mediaId,sortOrder)=>({productId:id,mediaId,sortOrder}))});}return product;});res.json(p);})); app.delete("/api/products/:id",auth,admin,asyncRoute(async(req,res)=>{await mongo.product.delete({where:idSchema.parse(req.params)});res.status(204).end();}));
 const parseImportRows=(value:unknown)=>z.object({rows:z.array(z.unknown()).min(1).max(500)}).parse(value).rows.map((row,index)=>{const parsed=importRowSchema.safeParse(row);return parsed.success?{row:index+1,data:parsed.data}:{row:index+1,errors:parsed.error.issues.map(issue=>`${issue.path.join(".")||"row"}: ${issue.message}`)}});
 app.post("/api/products/import/preview",auth,admin,asyncRoute(async(req,res)=>{const parsed=parseImportRows(req.body);res.json({valid:parsed.filter((entry):entry is {row:number;data:ImportRow}=>"data" in entry).map(entry=>entry.data),invalid:parsed.filter((entry):entry is {row:number;errors:string[]}=>"errors" in entry)});}));
-app.post("/api/products/import",auth,admin,asyncRoute(async(req,res)=>{const input=z.object({rows:z.array(z.unknown()).min(1).max(500),dryRun:z.boolean().default(false)}).parse(req.body);const parsed=parseImportRows({rows:input.rows});const invalid=parsed.filter((entry):entry is {row:number;errors:string[]}=>"errors" in entry);const valid=parsed.filter((entry):entry is {row:number;data:ImportRow}=>"data" in entry);const batchId=randomBytes(12).toString("hex");if(invalid.length){res.status(422).json({message:"Import validation failed",batchId,created:0,updated:0,categories:0,invalid});return;}if(input.dryRun){res.json({batchId,created:0,updated:0,categories:[...new Set(valid.map(entry=>entry.data.category).filter(Boolean))].length,invalid:[]});return;}const result=await prisma.$transaction(async tx=>{let created=0,updated=0,categories=0;for(const {data} of valid){let categoryId:string|undefined;if(data.category){let category=await tx.category.findFirst({where:{name:{equals:data.category,mode:"insensitive"}}});if(!category){category=await tx.category.create({data:{name:data.category,slug:slugify(data.category)}});categories++;}categoryId=category.id;}const existing=await tx.product.findUnique({where:{sku:data.sku}});const imageIds:string[]=[];for(const url of data.imageUrls??[]){const key=`import-${createHash("sha256").update(url).digest("hex")}`;const filename=path.basename(new URL(url).pathname)||"imported-image";const media=await tx.media.upsert({where:{key},update:{url,filename},create:{key,url,filename,mimeType:"image/*",size:0}});imageIds.push(media.id);}const productData:Prisma.ProductUncheckedUpdateInput={name:data.name,slug:data.slug??slugify(data.name),description:data.description,price:data.price,compareAtPrice:data.compareAtPrice,stockQuantity:data.stockQuantity,lowStockThreshold:data.lowStockThreshold,featured:data.featured,brand:data.brand,categoryId,specifications:data.specifications as Prisma.InputJsonValue|undefined};const product=existing?await tx.product.update({where:{id:existing.id},data:productData}):await tx.product.create({data:{...productData,sku:data.sku} as Prisma.ProductUncheckedCreateInput});if(existing)updated++;else {created++;if(data.stockQuantity)await tx.inventoryMovement.create({data:{productId:product.id,delta:data.stockQuantity,quantityAfter:data.stockQuantity,action:InventoryAction.RECEIVED,note:`Import ${batchId}`}});}await tx.productImage.deleteMany({where:{productId:product.id}});if(imageIds.length)await tx.productImage.createMany({data:imageIds.map((mediaId,sortOrder)=>({productId:product.id,mediaId,sortOrder}))});}return {created,updated,categories};});res.json({batchId,...result,invalid:[]});}));
-app.post("/api/products/:id/inventory",auth,admin,asyncRoute(async(req,res)=>{const input=z.object({delta:z.number().int(),action:z.nativeEnum(InventoryAction).default(InventoryAction.ADJUSTMENT),note:z.string().max(500).optional()}).parse(req.body);const result=await prisma.$transaction(async tx=>{const p=await tx.product.findUniqueOrThrow({where:idSchema.parse(req.params)});const next=p.stockQuantity+input.delta;if(next<0)throw new Error("Inventory cannot be negative");await tx.product.update({where:{id:p.id},data:{stockQuantity:next}});return tx.inventoryMovement.create({data:{productId:p.id,delta:input.delta,quantityAfter:next,action:input.action,note:input.note}})});res.json(result);}));
-app.get("/api/inventory/analytics",auth,admin,asyncRoute(async(_req,res)=>{const [products,out,movements]=await Promise.all([prisma.product.findMany({select:{stockQuantity:true,lowStockThreshold:true}}),prisma.product.count({where:{stockQuantity:0}}),prisma.inventoryMovement.findMany({take:20,orderBy:{createdAt:"desc"},include:{product:true}})]);res.json({lowStock:products.filter(p=>p.stockQuantity>0&&p.stockQuantity<=p.lowStockThreshold).length,outOfStock:out,recentMovements:movements});}));
+app.post("/api/products/import",auth,admin,asyncRoute(async(req,res)=>{const input=z.object({rows:z.array(z.unknown()).min(1).max(500),dryRun:z.boolean().default(false)}).parse(req.body);const parsed=parseImportRows({rows:input.rows});const invalid=parsed.filter((entry):entry is {row:number;errors:string[]}=>"errors" in entry);const valid=parsed.filter((entry):entry is {row:number;data:ImportRow}=>"data" in entry);const batchId=randomBytes(12).toString("hex");if(invalid.length){res.status(422).json({message:"Import validation failed",batchId,created:0,updated:0,categories:0,invalid});return;}if(input.dryRun){res.json({batchId,created:0,updated:0,categories:[...new Set(valid.map(entry=>entry.data.category).filter(Boolean))].length,invalid:[]});return;}const result=await mongo.$transaction(async tx=>{let created=0,updated=0,categories=0;for(const {data} of valid){let categoryId:string|undefined;if(data.category){let category=await tx.category.findFirst({where:{name:{equals:data.category,mode:"insensitive"}}});if(!category){category=await tx.category.create({data:{name:data.category,slug:slugify(data.category)}});categories++;}categoryId=category.id;}const existing=await tx.product.findUnique({where:{sku:data.sku}});const imageIds:string[]=[];for(const url of data.imageUrls??[]){const key=`import-${createHash("sha256").update(url).digest("hex")}`;const filename=path.basename(new URL(url).pathname)||"imported-image";const media=await tx.media.upsert({where:{key},update:{url,filename},create:{key,url,filename,mimeType:"image/*",size:0}});imageIds.push(media.id);}const productData:Partial<ProductRow>={name:data.name,slug:data.slug??slugify(data.name),description:data.description,price:data.price,compareAtPrice:data.compareAtPrice,stockQuantity:data.stockQuantity,lowStockThreshold:data.lowStockThreshold,featured:data.featured,brand:data.brand,categoryId,specifications:data.specifications};const product=existing?await tx.product.update({where:{id:existing.id},data:productData}):await tx.product.create({data:{...productData,sku:data.sku} as Partial<ProductRow>});if(existing)updated++;else {created++;if(data.stockQuantity)await tx.inventoryMovement.create({data:{productId:product.id,delta:data.stockQuantity,quantityAfter:data.stockQuantity,action:InventoryAction.RECEIVED,note:`Import ${batchId}`}});}await tx.productImage.deleteMany({where:{productId:product.id}});if(imageIds.length)await tx.productImage.createMany({data:imageIds.map((mediaId,sortOrder)=>({productId:product.id,mediaId,sortOrder}))});}return {created,updated,categories};});res.json({batchId,...result,invalid:[]});}));
+app.post("/api/products/:id/inventory",auth,admin,asyncRoute(async(req,res)=>{const input=z.object({delta:z.number().int(),action:z.nativeEnum(InventoryAction).default(InventoryAction.ADJUSTMENT),note:z.string().max(500).optional()}).parse(req.body);const result=await mongo.$transaction(async tx=>{const p=await tx.product.findUniqueOrThrow({where:idSchema.parse(req.params)});const next=p.stockQuantity+input.delta;if(next<0)throw new Error("Inventory cannot be negative");await tx.product.update({where:{id:p.id},data:{stockQuantity:next}});return tx.inventoryMovement.create({data:{productId:p.id,delta:input.delta,quantityAfter:next,action:input.action,note:input.note}})});res.json(result);}));
+app.get("/api/inventory/analytics",auth,admin,asyncRoute(async(_req,res)=>{const [products,out,movements]=await Promise.all([mongo.product.findMany({select:{stockQuantity:true,lowStockThreshold:true}}),mongo.product.count({where:{stockQuantity:0}}),mongo.inventoryMovement.findMany({take:20,orderBy:{createdAt:"desc"},include:{product:true}})]);res.json({lowStock:products.filter(p=>p.stockQuantity>0&&p.stockQuantity<=p.lowStockThreshold).length,outOfStock:out,recentMovements:movements});}));
 
-app.get("/api/categories",asyncRoute(async(_req,res)=>res.json(await prisma.category.findMany({include:{image:true,_count:{select:{products:true}}},orderBy:{name:"asc"}}))));
-app.post("/api/categories",auth,admin,asyncRoute(async(req,res)=>res.status(201).json(await prisma.category.create({data:categorySchema.parse(req.body)}))));
-app.patch("/api/categories/:id",auth,admin,asyncRoute(async(req,res)=>res.json(await prisma.category.update({where:idSchema.parse(req.params),data:categorySchema.partial().parse(req.body)}))));
-app.delete("/api/categories/:id",auth,admin,asyncRoute(async(req,res)=>{await prisma.category.delete({where:idSchema.parse(req.params)});res.status(204).end();}));
-function crud(path:string, model:"brandCollaboration"|"homepageBlock"){const db=()=>prisma[model] as any;const schema=model==="brandCollaboration"?brandSchema:homepageBlockSchema;app.get(path,asyncRoute(async(_q,res)=>{res.json(await db().findMany({orderBy:model==="brandCollaboration"?{sortOrder:"asc"}:undefined}));}));app.post(path,auth,admin,asyncRoute(async(req,res)=>{res.status(201).json(await db().create({data:schema.parse(req.body)}));}));app.patch(`${path}/:id`,auth,admin,asyncRoute(async(req,res)=>{res.json(await db().update({where:idSchema.parse(req.params),data:schema.partial().parse(req.body)}));}));app.delete(`${path}/:id`,auth,admin,asyncRoute(async(req,res)=>{await db().delete({where:idSchema.parse(req.params)});res.status(204).end();}));}
+app.get("/api/categories",asyncRoute(async(_req,res)=>res.json(await mongo.category.findMany({include:{image:true,_count:{select:{products:true}}},orderBy:{name:"asc"}}))));
+app.post("/api/categories",auth,admin,asyncRoute(async(req,res)=>res.status(201).json(await mongo.category.create({data:categorySchema.parse(req.body)}))));
+app.patch("/api/categories/:id",auth,admin,asyncRoute(async(req,res)=>res.json(await mongo.category.update({where:idSchema.parse(req.params),data:categorySchema.partial().parse(req.body)}))));
+app.delete("/api/categories/:id",auth,admin,asyncRoute(async(req,res)=>{await mongo.category.delete({where:idSchema.parse(req.params)});res.status(204).end();}));
+function crud(path:string, model:"brandCollaboration"|"homepageBlock"){const db=()=>mongo[model];const schema=model==="brandCollaboration"?brandSchema:homepageBlockSchema;app.get(path,asyncRoute(async(_q,res)=>{res.json(await db().findMany({orderBy:model==="brandCollaboration"?{sortOrder:"asc"}:undefined}));}));app.post(path,auth,admin,asyncRoute(async(req,res)=>{res.status(201).json(await db().create({data:schema.parse(req.body)}));}));app.patch(`${path}/:id`,auth,admin,asyncRoute(async(req,res)=>{res.json(await db().update({where:idSchema.parse(req.params),data:schema.partial().parse(req.body)}));}));app.delete(`${path}/:id`,auth,admin,asyncRoute(async(req,res)=>{await db().delete({where:idSchema.parse(req.params)});res.status(204).end();}));}
 crud("/api/brands","brandCollaboration");crud("/api/homepage","homepageBlock");
-app.get("/api/orders",auth,admin,asyncRoute(async(_req,res)=>res.json(await prisma.order.findMany({include:{user:true,items:true,payment:true,shipment:true,invoice:true,billingAddress:true,shippingAddress:true},orderBy:{createdAt:"desc"}})))); 
-app.patch("/api/orders/:id/status",auth,admin,asyncRoute(async(req,res)=>{const status=orderStatus.parse(req.body.status);const order=await prisma.order.update({where:idSchema.parse(req.params),data:{status},include:{user:true,items:true,payment:true,shipment:true}});if(status===OrderStatus.SHIPPED)await email(order.user.email,"Your AutoForge order has shipped",`Order ${order.number} is on its way.`);res.json(order);}));
+app.get("/api/orders",auth,admin,asyncRoute(async(_req,res)=>res.json(await mongo.order.findMany({include:{user:true,items:true,payment:true,shipment:true,invoice:true,billingAddress:true,shippingAddress:true},orderBy:{createdAt:"desc"}}))));
+app.patch("/api/orders/:id/status",auth,admin,asyncRoute(async(req,res)=>{const status=orderStatus.parse(req.body.status);const order=await mongo.order.update({where:idSchema.parse(req.params),data:{status},include:{user:true,items:true,payment:true,shipment:true}});if(status===OrderStatus.SHIPPED)await email(order.user.email,"Your AutoForge order has shipped",`Order ${order.number} is on its way.`);res.json(order);}));
 app.post("/api/orders",auth,asyncRoute(async(req,res)=>{
   const input=z.object({
     items:z.array(z.object({productId:z.string().cuid(),quantity:z.number().int().positive()})).min(1),
     shippingAddressId:z.string().cuid(),
     billingAddressId:z.string().cuid().optional(),
   }).parse(req.body);
-  const order=await prisma.$transaction(async tx=>{
+  const order=await mongo.$transaction(async tx=>{
     let subtotal=0;let tax=0;
     const lines=[] as any[];
     for(const line of input.items){
@@ -216,13 +217,13 @@ app.post("/api/orders",auth,asyncRoute(async(req,res)=>{
 // Payment Routes
 app.post("/api/payments/razorpay/create-order",auth,asyncRoute(async(req,res)=>{
   const { orderId } = z.object({ orderId: z.string().cuid() }).parse(req.body);
-  const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId, userId: req.user!.sub } });
+  const order = await mongo.order.findUniqueOrThrow({ where: { id: orderId, userId: req.user!.sub } });
   if(!razorpay){ res.status(500).json({message:"Razorpay not configured"}); return; }
   const amount = Math.round(Number(order.total)*100);
   const rzOrder = await razorpay.orders.create({
     amount,currency:"INR",receipt:order.id,notes:{orderNumber:order.number}
   });
-  await prisma.payment.upsert({
+  await mongo.payment.upsert({
     where:{orderId},
     update:{razorpayOrderId:rzOrder.id,amount:order.total},
     create:{orderId,razorpayOrderId:rzOrder.id,amount:order.total,provider:PaymentProvider.RAZORPAY,status:PaymentStatus.PENDING}
@@ -233,18 +234,18 @@ app.post("/api/payments/razorpay/verify",auth,asyncRoute(async(req,res)=>{
   const { orderId, paymentId, signature } = z.object({
     orderId:z.string().cuid(),paymentId:z.string(),signature:z.string()
   }).parse(req.body);
-  const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId, userId: req.user!.sub }, include: { payment: true, user: true, items: true } });
+  const order = await mongo.order.findUniqueOrThrow({ where: { id: orderId, userId: req.user!.sub }, include: { payment: true, user: true, items: true } });
   const payment = order.payment;
   if(!razorpay || !payment){ res.status(400).json({message:"Invalid order"}); return; }
   // Verify signature
   const body = payment.razorpayOrderId + "|" + paymentId;
   const expectedSignature = createHmac("sha256", env.RAZORPAY_KEY_SECRET!).update(body).digest("hex");
   if(expectedSignature !== signature){
-    await prisma.payment.update({ where: { orderId }, data: { status: PaymentStatus.FAILED, failureReason: "Invalid signature" } });
+    await mongo.payment.update({ where: { orderId }, data: { status: PaymentStatus.FAILED, failureReason: "Invalid signature" } });
     res.status(400).json({message:"Payment verification failed"}); return;
   }
   // Update payment and order status
-  await prisma.$transaction(async tx=>{
+  await mongo.$transaction(async tx=>{
     await tx.payment.update({
       where:{orderId},
       data:{razorpayPaymentId:paymentId,razorpaySignature:signature,status:PaymentStatus.SUCCESS,transactionId:paymentId,transactionTime:new Date()}
@@ -269,20 +270,20 @@ app.post("/api/payments/razorpay/verify",auth,asyncRoute(async(req,res)=>{
       }
     });
   });
-  await prisma.cartItem.deleteMany({where:{userId:req.user!.sub}});
+  await mongo.cartItem.deleteMany({where:{userId:req.user!.sub}});
   // Send confirmation email
   await email(order.user.email,"AutoForge payment successful",`Your payment for order ${order.number} was successful.`);
   res.json({message:"Payment successful"});
 }));
 app.get("/api/orders/:id", auth, asyncRoute(async(req, res) => {
-  const order = await prisma.order.findUniqueOrThrow({
+  const order = await mongo.order.findUniqueOrThrow({
     where: { id: idSchema.parse(req.params).id, userId: req.user!.sub },
     include: { items: true, payment: true, shipment: true, invoice: true, billingAddress: true, shippingAddress: true }
   });
   res.json(order);
 }));
 app.get("/api/orders/track/:number", asyncRoute(async(req, res) => {
-  const order = await prisma.order.findUniqueOrThrow({
+  const order = await mongo.order.findUniqueOrThrow({
     where: { number: String(req.params.number) },
     include: { items: true, payment: true, shipment: true, invoice: true }
   });
@@ -291,7 +292,7 @@ app.get("/api/orders/track/:number", asyncRoute(async(req, res) => {
 
 // Product Reviews
 app.get("/api/products/:id/reviews", asyncRoute(async(req, res) => {
-  const reviews = await prisma.productReview.findMany({
+  const reviews = await mongo.productReview.findMany({
     where: { productId: idSchema.parse(req.params).id, approved: true },
     include: { user: true, images: { include: { media: true } } },
     orderBy: { createdAt: "desc" }
@@ -304,10 +305,10 @@ app.post("/api/products/:id/reviews", auth, asyncRoute(async(req, res) => {
     description: z.string().optional(), imageIds: z.array(z.string().cuid()).max(5).optional()
   }).parse(req.body);
   // Verify user bought this product
-  const orderItem = await prisma.orderItem.findFirstOrThrow({
+  const orderItem = await mongo.orderItem.findFirstOrThrow({
     where: { id: orderItemId, order: { userId: req.user!.sub }, productId: idSchema.parse(req.params).id }
   });
-  const review = await prisma.productReview.create({
+  const review = await mongo.productReview.create({
     data: {
       productId: idSchema.parse(req.params).id, userId: req.user!.sub, orderItemId, rating, title, description,
       images: imageIds ? { create: imageIds.map((mediaId, sortOrder) => ({ mediaId, sortOrder })) } : undefined
@@ -317,7 +318,7 @@ app.post("/api/products/:id/reviews", auth, asyncRoute(async(req, res) => {
   res.status(201).json(review);
 }));
 app.patch("/api/reviews/:id/approve", auth, admin, asyncRoute(async(req, res) => {
-  const review = await prisma.productReview.update({
+  const review = await mongo.productReview.update({
     where: { id: idSchema.parse(req.params).id },
     data: { approved: true }
   });
@@ -325,14 +326,14 @@ app.patch("/api/reviews/:id/approve", auth, admin, asyncRoute(async(req, res) =>
 }));
 app.patch("/api/reviews/:id/reply", auth, admin, asyncRoute(async(req, res) => {
   const { reply } = z.object({ reply: z.string() }).parse(req.body);
-  const review = await prisma.productReview.update({
+  const review = await mongo.productReview.update({
     where: { id: idSchema.parse(req.params).id },
     data: { adminReply: reply }
   });
   res.json(review);
 }));
 app.patch("/api/reviews/:id/helpful", asyncRoute(async(req, res) => {
-  const review = await prisma.productReview.update({
+  const review = await mongo.productReview.update({
     where: { id: idSchema.parse(req.params).id },
     data: { helpfulVotes: { increment: 1 } }
   });
@@ -353,19 +354,19 @@ class MockShippingProvider implements ShippingProvider {
 function getShippingProvider(){ return new MockShippingProvider(); }
 
 app.post("/api/orders/:id/ship", auth, admin, asyncRoute(async(req, res) => {
-  const order = await prisma.order.findUniqueOrThrow({ where: idSchema.parse(req.params), include: { shippingAddress: true, items: true } });
+  const order = await mongo.order.findUniqueOrThrow({ where: idSchema.parse(req.params), include: { shippingAddress: true, items: true } });
   const provider = getShippingProvider();
   const shipmentData = await provider.createShipment(order);
-  const shipment = await prisma.shipment.upsert({
+  const shipment = await mongo.shipment.upsert({
     where: { orderId: order.id },
     update: { ...shipmentData, status: ShipmentStatus.PICKED },
     create: { orderId: order.id, ...shipmentData, status: ShipmentStatus.PICKED, courierName: "Mock Courier" }
   });
   res.json(shipment);
 }));
-app.get("/api/customers",auth,admin,asyncRoute(async(_req,res)=>res.json(await prisma.user.findMany({where:{role:Role.CUSTOMER},include:{addresses:true,orders:true}}))));
+app.get("/api/customers",auth,admin,asyncRoute(async(_req,res)=>res.json(await mongo.user.findMany({where:{role:Role.CUSTOMER},include:{addresses:true,orders:true}}))));
 app.get("/api/me", auth, asyncRoute(async(req, res) => {
-  const user = await prisma.user.findUnique({
+  const user = await mongo.user.findUnique({
     where: { id: req.user!.sub },
     include: { addresses: true, orders: { include: { items: true } } }
   });
@@ -374,14 +375,14 @@ app.get("/api/me", auth, asyncRoute(async(req, res) => {
 }));
 app.patch("/api/me", auth, asyncRoute(async(req, res) => {
   const data = z.object({ name: z.string().optional(), email: z.string().optional() }).parse(req.body);
-  const user = await prisma.user.update({
+  const user = await mongo.user.update({
     where: { id: req.user!.sub },
     data,
   });
   res.json(publicUser(user));
 }));
 app.get("/api/me/orders", auth, asyncRoute(async(req, res) => {
-  const orders = await prisma.order.findMany({
+  const orders = await mongo.order.findMany({
     where: { userId: req.user!.sub },
     include: { items: true },
     orderBy: { createdAt: "desc" }
@@ -389,18 +390,18 @@ app.get("/api/me/orders", auth, asyncRoute(async(req, res) => {
   res.json(orders);
 }));
 app.get("/api/me/addresses", auth, asyncRoute(async(req, res) => {
-  const addresses = await prisma.address.findMany({
+  const addresses = await mongo.address.findMany({
     where: { userId: req.user!.sub },
   });
   res.json(addresses);
 }));
-app.get("/api/cart",auth,asyncRoute(async(req,res)=>res.json(await prisma.cartItem.findMany({where:{userId:req.user!.sub},include:{product:{include:{images:{include:{media:true}}}}}}))));
-app.post("/api/cart",auth,asyncRoute(async(req,res)=>{const {productId,quantity}=z.object({productId:z.string().cuid(),quantity:z.number().int().min(1).default(1)}).parse(req.body);res.status(201).json(await prisma.cartItem.upsert({where:{userId_productId:{userId:req.user!.sub,productId}},update:{quantity:{increment:quantity}},create:{userId:req.user!.sub,productId,quantity}}));}));
-app.patch("/api/cart",auth,asyncRoute(async(req,res)=>{const {productId,quantity}=z.object({productId:z.string().cuid(),quantity:z.number().int().min(1)}).parse(req.body);res.json(await prisma.cartItem.update({where:{userId_productId:{userId:req.user!.sub,productId}},data:{quantity}}));}));
-app.delete("/api/cart/:id",auth,asyncRoute(async(req,res)=>{await prisma.cartItem.delete({where:{userId_productId:{userId:req.user!.sub,productId:idSchema.parse(req.params).id}}});res.status(204).end();}));
-app.get("/api/wishlist",auth,asyncRoute(async(req,res)=>res.json(await prisma.wishlistItem.findMany({where:{userId:req.user!.sub},include:{product:{include:{images:{include:{media:true}}}}}}))));
-app.post("/api/wishlist",auth,asyncRoute(async(req,res)=>{const {productId}=z.object({productId:z.string().cuid()}).parse(req.body);res.status(201).json(await prisma.wishlistItem.upsert({where:{userId_productId:{userId:req.user!.sub,productId}},update:{},create:{userId:req.user!.sub,productId}}));}));
-app.delete("/api/wishlist/:id",auth,asyncRoute(async(req,res)=>{await prisma.wishlistItem.delete({where:{userId_productId:{userId:req.user!.sub,productId:idSchema.parse(req.params).id}}});res.status(204).end();}));
+app.get("/api/cart",auth,asyncRoute(async(req,res)=>res.json(await mongo.cartItem.findMany({where:{userId:req.user!.sub},include:{product:{include:{images:{include:{media:true}}}}}}))));
+app.post("/api/cart",auth,asyncRoute(async(req,res)=>{const {productId,quantity}=z.object({productId:z.string().cuid(),quantity:z.number().int().min(1).default(1)}).parse(req.body);res.status(201).json(await mongo.cartItem.upsert({where:{userId_productId:{userId:req.user!.sub,productId}},update:{quantity:{increment:quantity}},create:{userId:req.user!.sub,productId,quantity}}));}));
+app.patch("/api/cart",auth,asyncRoute(async(req,res)=>{const {productId,quantity}=z.object({productId:z.string().cuid(),quantity:z.number().int().min(1)}).parse(req.body);res.json(await mongo.cartItem.update({where:{userId_productId:{userId:req.user!.sub,productId}},data:{quantity}}));}));
+app.delete("/api/cart/:id",auth,asyncRoute(async(req,res)=>{await mongo.cartItem.delete({where:{userId_productId:{userId:req.user!.sub,productId:idSchema.parse(req.params).id}}});res.status(204).end();}));
+app.get("/api/wishlist",auth,asyncRoute(async(req,res)=>res.json(await mongo.wishlistItem.findMany({where:{userId:req.user!.sub},include:{product:{include:{images:{include:{media:true}}}}}}))));
+app.post("/api/wishlist",auth,asyncRoute(async(req,res)=>{const {productId}=z.object({productId:z.string().cuid()}).parse(req.body);res.status(201).json(await mongo.wishlistItem.upsert({where:{userId_productId:{userId:req.user!.sub,productId}},update:{},create:{userId:req.user!.sub,productId}}));}));
+app.delete("/api/wishlist/:id",auth,asyncRoute(async(req,res)=>{await mongo.wishlistItem.delete({where:{userId_productId:{userId:req.user!.sub,productId:idSchema.parse(req.params).id}}});res.status(204).end();}));
 app.post("/api/me/addresses", auth, asyncRoute(async(req, res) => {
   const data = z.object({
     line1: z.string(),
@@ -410,27 +411,28 @@ app.post("/api/me/addresses", auth, asyncRoute(async(req, res) => {
     postalCode: z.string(),
     country: z.string(),
   }).parse(req.body);
-  const address = await prisma.address.create({
+  const address = await mongo.address.create({
     data: { ...data, userId: req.user!.sub },
   });
   res.status(201).json(address);
 }));
 app.delete("/api/me/addresses/:id", auth, asyncRoute(async(req, res) => {
   const { id } = idSchema.parse(req.params);
-  await prisma.address.delete({ where: { id, userId: req.user!.sub } });
+  await mongo.address.delete({ where: { id, userId: req.user!.sub } });
   res.status(204).end();
 }));
 app.get("/api/health",(_req,res)=>res.json({status:"ok",timestamp:new Date().toISOString(),service:"autoforge-api",version:"1.0.0",uptime:Math.floor(process.uptime())}));
-app.get("/api/ready",asyncRoute(async(_req,res)=>{try{await prisma.$queryRaw`SELECT 1`;res.json({status:"ready",timestamp:new Date().toISOString()});}catch{res.status(503).json({status:"not_ready",timestamp:new Date().toISOString()});}}));
-app.get("/api/settings",asyncRoute(async(_req,res)=>res.json(await prisma.setting.findMany())));app.put("/api/settings/:key",auth,admin,asyncRoute(async(req,res)=>{const {value}=settingWriteSchema.parse(req.body);const key=z.string().min(1).max(120).parse(req.params.key);res.json(await prisma.setting.upsert({where:{key},update:{value:value as any},create:{key,value:value as any}}));}));
-app.post("/api/media",auth,admin,upload.array("files",10),asyncRoute(async(req,res)=>{await mkdir(uploadDir,{recursive:true});const files=req.files as Express.Multer.File[];if(!files?.length){res.status(400).json({message:"At least one image is required"});return;}const media=await Promise.all(files.map(async f=>{const ext=path.extname(f.originalname).toLowerCase()||".bin";const key=`${randomBytes(16).toString("hex")}${ext}`;await writeFile(path.join(uploadDir,key),f.buffer);return prisma.media.create({data:{key,url:`/uploads/${key}`,filename:f.originalname,mimeType:f.mimetype,size:f.size}})}));res.status(201).json(media);}));
-app.get("/api/media",auth,admin,asyncRoute(async(_req,res)=>res.json(await prisma.media.findMany({orderBy:{createdAt:"desc"}}))));app.patch("/api/media/:id",auth,admin,asyncRoute(async(req,res)=>res.json(await prisma.media.update({where:idSchema.parse(req.params),data:z.object({filename:z.string().min(1).optional(),altText:z.string().optional().nullable()}).parse(req.body)}))));app.delete("/api/media/:id",auth,admin,asyncRoute(async(req,res)=>{const m=await prisma.media.delete({where:idSchema.parse(req.params)});await unlink(path.join(uploadDir,m.key)).catch(()=>undefined);res.status(204).end();}));
+app.get("/api/ready",asyncRoute(async(_req,res)=>{try{await mongo.ping();res.json({status:"ready",timestamp:new Date().toISOString()});}catch{res.status(503).json({status:"not_ready",timestamp:new Date().toISOString()});}}));
+app.get("/api/settings",asyncRoute(async(_req,res)=>res.json(await mongo.setting.findMany())));app.put("/api/settings/:key",auth,admin,asyncRoute(async(req,res)=>{const {value}=settingWriteSchema.parse(req.body);const key=z.string().min(1).max(120).parse(req.params.key);res.json(await mongo.setting.upsert({where:{key},update:{value},create:{key,value}}));}));
+app.post("/api/media",auth,admin,upload.array("files",10),asyncRoute(async(req,res)=>{await mkdir(uploadDir,{recursive:true});const files=req.files as Express.Multer.File[];if(!files?.length){res.status(400).json({message:"At least one image is required"});return;}const media=await Promise.all(files.map(async f=>{const ext=path.extname(f.originalname).toLowerCase()||".bin";const key=`${randomBytes(16).toString("hex")}${ext}`;await writeFile(path.join(uploadDir,key),f.buffer);return mongo.media.create({data:{key,url:`/uploads/${key}`,filename:f.originalname,mimeType:f.mimetype,size:f.size}})}));res.status(201).json(media);}));
+app.get("/api/media",auth,admin,asyncRoute(async(_req,res)=>res.json(await mongo.media.findMany({orderBy:{createdAt:"desc"}}))));app.patch("/api/media/:id",auth,admin,asyncRoute(async(req,res)=>res.json(await mongo.media.update({where:idSchema.parse(req.params),data:z.object({filename:z.string().min(1).optional(),altText:z.string().optional().nullable()}).parse(req.body)}))));app.delete("/api/media/:id",auth,admin,asyncRoute(async(req,res)=>{const m=await mongo.media.delete({where:idSchema.parse(req.params)});await unlink(path.join(uploadDir,m.key)).catch(()=>undefined);res.status(204).end();}));
 const enquirySchema=z.object({type:z.enum(["contact","sell","bulk"]),name:z.string().min(2),email:z.string().email(),phone:z.string().max(30).optional(),companyName:z.string().max(160).optional(),message:z.string().min(5).max(5000),details:z.record(z.unknown()).optional()});
-app.post("/api/enquiries",asyncRoute(async(req,res)=>{const input=enquirySchema.parse(req.body);const enquiry=await prisma.enquiry.create({data:input as any});await Promise.all([email(input.email,"We received your AutoForge enquiry",`Thanks ${input.name}; our team will respond shortly.`),email(env.MAIL_FROM??"",`New ${input.type} enquiry`,`${input.name}: ${input.message}`)]);res.status(201).json(enquiry);}));
-app.get("/api/enquiries",auth,admin,asyncRoute(async(req,res)=>{const q=z.string().optional().parse(req.query.q);const status=z.nativeEnum(EnquiryStatus).optional().parse(req.query.status);res.json(await prisma.enquiry.findMany({where:{type:"sell",status,OR:q?[{name:{contains:q,mode:"insensitive"}},{email:{contains:q,mode:"insensitive"}},{companyName:{contains:q,mode:"insensitive"}}]:undefined},include:{notes:true},orderBy:{createdAt:"desc"}}));}));
-app.patch("/api/enquiries/:id",auth,admin,asyncRoute(async(req,res)=>{const data=z.object({status:z.nativeEnum(EnquiryStatus).optional()}).parse(req.body);res.json(await prisma.enquiry.update({where:idSchema.parse(req.params),data,include:{notes:true}}));}));
-app.post("/api/enquiries/:id/notes",auth,admin,asyncRoute(async(req,res)=>{const {body}=z.object({body:z.string().min(1).max(5000)}).parse(req.body);res.status(201).json(await prisma.enquiryNote.create({data:{enquiryId:idSchema.parse(req.params).id,body}}));}));
-app.delete("/api/enquiries/:id",auth,admin,asyncRoute(async(req,res)=>{await prisma.enquiry.delete({where:idSchema.parse(req.params)});res.status(204).end();}));
-app.get("/api/enquiries/export.csv",auth,admin,asyncRoute(async(_req,res)=>{const rows=await prisma.enquiry.findMany({where:{type:"sell"},orderBy:{createdAt:"desc"}});const csv=["Name,Company,Email,Phone,Status,Created",...rows.map(r=>[r.name,r.companyName??"",r.email,r.phone??"",r.status,r.createdAt.toISOString()].map(v=>`\"${v.replaceAll("\"","\"\"")}\"`).join(","))].join("\n");res.setHeader("Content-Type","text/csv");res.attachment("seller-enquiries.csv").send(csv);}));
-app.use((err:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{console.error(err);if(err instanceof z.ZodError){res.status(422).json({message:"Validation failed",errors:err.flatten()});return;}const message=err instanceof Error?err.message:"Unexpected server error";res.status(message.includes("not found")?404:500).json({message});});
-app.listen(env.PORT,()=>console.log(`AutoForge API listening on ${env.PORT}`));
+app.post("/api/enquiries",asyncRoute(async(req,res)=>{const input=enquirySchema.parse(req.body);const enquiry=await mongo.enquiry.create({data:input});await Promise.all([email(input.email,"We received your AutoForge enquiry",`Thanks ${input.name}; our team will respond shortly.`),email(env.MAIL_FROM??"",`New ${input.type} enquiry`,`${input.name}: ${input.message}`)]);res.status(201).json(enquiry);}));
+app.get("/api/enquiries",auth,admin,asyncRoute(async(req,res)=>{const q=z.string().optional().parse(req.query.q);const status=z.nativeEnum(EnquiryStatus).optional().parse(req.query.status);res.json(await mongo.enquiry.findMany({where:{type:"sell",status,OR:q?[{name:{contains:q,mode:"insensitive"}},{email:{contains:q,mode:"insensitive"}},{companyName:{contains:q,mode:"insensitive"}}]:undefined},include:{notes:true},orderBy:{createdAt:"desc"}}));}));
+app.patch("/api/enquiries/:id",auth,admin,asyncRoute(async(req,res)=>{const data=z.object({status:z.nativeEnum(EnquiryStatus).optional()}).parse(req.body);res.json(await mongo.enquiry.update({where:idSchema.parse(req.params),data,include:{notes:true}}));}));
+app.post("/api/enquiries/:id/notes",auth,admin,asyncRoute(async(req,res)=>{const {body}=z.object({body:z.string().min(1).max(5000)}).parse(req.body);res.status(201).json(await mongo.enquiryNote.create({data:{enquiryId:idSchema.parse(req.params).id,body}}));}));
+app.delete("/api/enquiries/:id",auth,admin,asyncRoute(async(req,res)=>{await mongo.enquiry.delete({where:idSchema.parse(req.params)});res.status(204).end();}));
+app.get("/api/enquiries/export.csv",auth,admin,asyncRoute(async(_req,res)=>{const rows=await mongo.enquiry.findMany({where:{type:"sell"},orderBy:{createdAt:"desc"}});const csv=["Name,Company,Email,Phone,Status,Created",...rows.map(r=>[r.name,r.companyName??"",r.email,r.phone??"",r.status,r.createdAt.toISOString()].map(v=>`\"${v.replaceAll("\"","\"\"")}\"`).join(","))].join("\n");res.setHeader("Content-Type","text/csv");res.attachment("seller-enquiries.csv").send(csv);}));
+app.use((err:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{if(err instanceof z.ZodError){res.status(422).json({message:"Validation failed",errors:err.flatten()});return;}console.error(err);const message=err instanceof Error?err.message:"Unexpected server error";res.status(message.includes("not found")?404:500).json({message});});
+async function start():Promise<void>{await connectMongoDB();app.listen(env.PORT,()=>console.log(`AutoForge API listening on ${env.PORT}`));}
+void start().catch((error:unknown)=>{console.error("Failed to start AutoForge API",error);process.exitCode=1;});

@@ -193,3 +193,11 @@ export interface Coupon {
   type: "percent" | "fixed";
   value: number;
 }
+
+export interface ShopSearch {
+  q?: string;
+  category?: string;
+  brand?: string;
+  sortBy?: string;
+  page?: number;
+}

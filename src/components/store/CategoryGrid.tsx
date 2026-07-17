@@ -1,5 +1,6 @@
 import { useCategories } from "@/hooks/useStoreData";
 import { Skeleton } from "@/components/ui/skeleton";
+import fallbackCategoryImage from "@/assets/cat-components.jpg";
 
 export function CategoryGrid() {
   const { data: categoriesList, loading, error } = useCategories();
@@ -55,12 +56,12 @@ export function CategoryGrid() {
           <Link key={cat.name} to="/shop" search={{ category: cat.name }} className="group">
             <div className="overflow-hidden rounded-lg">
               <img
-                src={typeof cat.image === 'string' ? cat.image : cat.image?.url}
+                src={(typeof cat.image === "string" ? cat.image : cat.image?.url) || fallbackCategoryImage}
                 alt={cat.name}
                 width={640}
                 height={640}
                 loading="lazy"
-                onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/assets/cat-components.jpg"; }}
+                onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = fallbackCategoryImage; }}
                 className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>

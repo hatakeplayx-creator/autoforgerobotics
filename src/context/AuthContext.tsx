@@ -118,8 +118,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser,
           );
           setUser(userData);
-        } catch (err) {
-          console.error("Failed to restore session", err);
+        } catch {
+          // An expired or revoked persisted session is an expected signed-out state.
           localStorage.removeItem(ACCESS_TOKEN_KEY);
           localStorage.removeItem(REFRESH_TOKEN_KEY);
         } finally {

@@ -23,7 +23,7 @@ function CheckoutPage() {
   if (placed) {
     return (
       <div className="container mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
-        <CheckCircle className="h-16 w-16 text-green-500" />
+        <CheckCircle className="h-16 w-16 text-success" />
         <h1 className="text-3xl font-bold">Order Placed!</h1>
         <p className="text-muted-foreground">Thank you for your purchase. This is a demo checkout.</p>
         <Button onClick={() => navigate({ to: "/shop" })} className="mt-4">

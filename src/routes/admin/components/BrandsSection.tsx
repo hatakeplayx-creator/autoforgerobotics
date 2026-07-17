@@ -5,6 +5,17 @@ import { toast } from "sonner";
 import { Search } from "lucide-react";
 
 const emptyForm = { name: "", logoUrl: "", sortOrder: 0, active: true };
+const apiBase = import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, "") ?? "";
+
+function BrandThumbnail({ brand }: { brand: AdminBrand }) {
+  const [failed, setFailed] = useState(false);
+  const isPlaceholder = brand.logoUrl.endsWith("placeholder-brand.svg");
+  if (!brand.logoUrl || isPlaceholder || failed) {
+    return <span className="flex h-8 w-8 items-center justify-center rounded bg-muted text-xs font-bold text-muted-foreground">{brand.name.slice(0, 2).toUpperCase()}</span>;
+  }
+  const src = brand.logoUrl.startsWith("http") ? brand.logoUrl : `${apiBase}${brand.logoUrl}`;
+  return <img src={src} alt={brand.name} onError={() => setFailed(true)} className="h-8 w-8 rounded object-contain" />;
+}
 
 export default function BrandsSection({ token }: { token?: string }) {
   const [brands, setBrands] = useState<AdminBrand[]>([]);
@@ -104,9 +115,7 @@ export default function BrandsSection({ token }: { token?: string }) {
             {filtered.map((b) => (
               <div key={b.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-4">
                 <div className="flex items-center gap-3">
-                  {b.logoUrl && (
-                    <img src={b.logoUrl} alt={b.name} className="h-8 w-8 rounded object-contain" />
-                  )}
+                  <BrandThumbnail brand={b} />
                   <div>
                     <p className="font-medium">{b.name}</p>
                     <p className="mt-1 text-xs text-muted-foreground">

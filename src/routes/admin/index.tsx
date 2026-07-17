@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Box, Boxes, FileImage, Home, LayoutDashboard, LogOut, Menu, Package, Settings, ShoppingBag, Users, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 import DashboardSection from "./components/DashboardSection";
@@ -38,10 +38,13 @@ function AdminDashboard() {
   const [section, setSection] = useState<Section>("Dashboard");
   const [open, setOpen] = useState(false);
 
-  if (!loading && user?.role !== "ADMIN") {
-    navigate({ to: "/admin/login" });
-    return null;
-  }
+  useEffect(() => {
+    if (!loading && user?.role !== "ADMIN") {
+      void navigate({ to: "/admin/login" });
+    }
+  }, [loading, navigate, user?.role]);
+
+  if (!loading && user?.role !== "ADMIN") return null;
 
   const token = typeof window !== "undefined" ? localStorage.getItem("autoforge_access_token") || undefined : undefined;
 

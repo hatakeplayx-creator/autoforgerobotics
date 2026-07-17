@@ -23,7 +23,7 @@ export function ProductCard({ product }: { product: Product }) {
   };
 
   return (
-    <div className="group flex h-full flex-col rounded-lg border border-border bg-card p-3 transition-shadow hover:shadow-md">
+    <div className="group flex h-full flex-col rounded-lg border border-border bg-card p-3 shadow-[var(--shadow-soft)] transition-[border-color,box-shadow] duration-200 hover:border-primary/25 hover:shadow-[var(--shadow-raised)]">
       <div className="mb-1 flex items-start justify-between gap-2">
         <span className="line-clamp-1 text-xs font-medium text-muted-foreground">{brand}</span>
         <button

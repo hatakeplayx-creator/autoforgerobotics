@@ -4,13 +4,13 @@ import { toast } from "sonner";
 import { Search } from "lucide-react";
 
 const STATUS_STYLES: Record<string, string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  CONFIRMED: "bg-blue-100 text-blue-800",
-  PACKED: "bg-indigo-100 text-indigo-800",
-  SHIPPED: "bg-purple-100 text-purple-800",
-  DELIVERED: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-red-100 text-red-800",
-  REFUNDED: "bg-gray-100 text-gray-800",
+  PENDING: "bg-warning/15 text-warning-foreground",
+  CONFIRMED: "bg-info/10 text-info",
+  PACKED: "bg-primary/10 text-primary",
+  SHIPPED: "bg-primary/10 text-primary",
+  DELIVERED: "bg-success/10 text-success",
+  CANCELLED: "bg-destructive/10 text-destructive",
+  REFUNDED: "bg-muted text-muted-foreground",
 };
 
 const STATUS_OPTIONS = ["PENDING", "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"];
@@ -92,7 +92,7 @@ export default function OrdersSection({ token }: { token?: string }) {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[order.status] ?? "bg-gray-100 text-gray-800"}`}>{order.status}</span>
+                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[order.status] ?? "bg-muted text-muted-foreground"}`}>{order.status}</span>
                     <select value={order.status} disabled={updatingId === order.id} onChange={(e) => handleStatusChange(order.id, e.target.value)} className="rounded-md border bg-background px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-ring disabled:opacity-50">
                       {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>

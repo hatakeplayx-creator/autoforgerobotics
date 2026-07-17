@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { fetchDashboard, type DashboardMetrics } from "@/services/adminApi";
 import { toast } from "sonner";
 
+const skeletonBarHeights = [44, 68, 36, 82, 56, 94, 63, 75, 49, 88] as const;
+
 const statusStyle: Record<string, string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  CONFIRMED: "bg-blue-100 text-blue-800",
-  SHIPPED: "bg-purple-100 text-purple-800",
-  DELIVERED: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-red-100 text-red-800",
+  PENDING: "bg-warning/15 text-warning-foreground",
+  CONFIRMED: "bg-info/10 text-info",
+  SHIPPED: "bg-primary/10 text-primary",
+  DELIVERED: "bg-success/10 text-success",
+  CANCELLED: "bg-destructive/10 text-destructive",
 };
 
 function SkeletonCard() {
@@ -52,8 +54,8 @@ export default function DashboardSection({ token }: { token?: string }) {
           <div className="rounded-lg border bg-card p-5 xl:col-span-2">
             <div className="h-5 w-40 animate-pulse rounded bg-muted" />
             <div className="mt-8 flex h-48 items-end gap-2">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="flex-1 animate-pulse rounded-t bg-muted" style={{ height: `${30 + Math.random() * 70}%` }} />
+              {skeletonBarHeights.map((height, i) => (
+                <div key={i} className="flex-1 animate-pulse rounded-t bg-muted" style={{ height: `${height}%` }} />
               ))}
             </div>
           </div>
@@ -177,7 +179,7 @@ export default function DashboardSection({ token }: { token?: string }) {
                     <td>₹{Number(o.total).toLocaleString("en-IN")}</td>
                     <td>
                       <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${statusStyle[o.status] ?? "bg-gray-100 text-gray-800"}`}
+                        className={`rounded-full px-2 py-1 text-xs font-medium ${statusStyle[o.status] ?? "bg-muted text-muted-foreground"}`}
                       >
                         {o.status.charAt(0) + o.status.slice(1).toLowerCase()}
                       </span>

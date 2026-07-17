@@ -1,4 +1,9 @@
-import type { PrismaClient, Setting } from "@prisma/client";
+import type { JsonValue } from "../mongodb/models.js";
+
+interface Setting {
+  key: string;
+  value: JsonValue;
+}
 
 export interface OTPProvider {
   send(phone: string, otp: string): Promise<void>;
@@ -62,26 +67,26 @@ class WhatsAppOTPProvider implements OTPProvider {
 }
 
 export function createOTPProvider(settings: Setting[]): OTPProvider {
-  const getSetting = (key: string) => settings.find(s => s.key === key)?.value as any;
+  const getSetting = (key: string): JsonValue | undefined => settings.find(s => s.key === key)?.value;
 
   const providerType = getSetting("OTP_PROVIDER") || "mock";
 
   switch (providerType) {
     case "twilio":
       return new TwilioOTPProvider({
-        accountSid: getSetting("TWILIO_ACCOUNT_SID"),
-        authToken: getSetting("TWILIO_AUTH_TOKEN"),
-        from: getSetting("TWILIO_FROM"),
+        accountSid: String(getSetting("TWILIO_ACCOUNT_SID") ?? ""),
+        authToken: String(getSetting("TWILIO_AUTH_TOKEN") ?? ""),
+        from: String(getSetting("TWILIO_FROM") ?? ""),
       });
     case "msg91":
       return new MSG91OTPProvider({
-        apiKey: getSetting("MSG91_API_KEY"),
-        senderId: getSetting("MSG91_SENDER_ID"),
+        apiKey: String(getSetting("MSG91_API_KEY") ?? ""),
+        senderId: String(getSetting("MSG91_SENDER_ID") ?? ""),
       });
     case "whatsapp":
       return new WhatsAppOTPProvider({
-        apiKey: getSetting("WHATSAPP_API_KEY"),
-        from: getSetting("WHATSAPP_FROM"),
+        apiKey: String(getSetting("WHATSAPP_API_KEY") ?? ""),
+        from: String(getSetting("WHATSAPP_FROM") ?? ""),
       });
     default:
       return new MockOTPProvider();
