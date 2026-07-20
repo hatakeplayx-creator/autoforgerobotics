@@ -11,19 +11,11 @@ function BlogsPage() {
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-extrabold text-foreground">Blogs</h1>
-          <p className="mt-2 text-muted-foreground">
-            Read our latest articles and tutorials!
-          </p>
+          <p className="mt-2 text-muted-foreground">Engineering notes and product guides from AutoForge.</p>
         </div>
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="border border-border rounded-lg p-4">
-              <h3 className="font-semibold text-foreground">Blog Post {i}</h3>
-              <p className="text-sm text-muted-foreground">
-                This is a sample blog post for demonstration purposes.
-              </p>
-            </div>
-          ))}
+        <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
+          <h2 className="font-semibold text-foreground">No published articles</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Published engineering resources will appear here.</p>
         </div>
       </div>
     </StorePageShell>

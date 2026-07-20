@@ -33,7 +33,7 @@ const nav: { label: Section; icon: typeof LayoutDashboard }[] = [
 ];
 
 function AdminDashboard() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, accessToken } = useAuth();
   const navigate = useNavigate();
   const [section, setSection] = useState<Section>("Dashboard");
   const [open, setOpen] = useState(false);
@@ -46,13 +46,13 @@ function AdminDashboard() {
 
   if (!loading && user?.role !== "ADMIN") return null;
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("autoforge_access_token") || undefined : undefined;
+  const token = accessToken ?? undefined;
 
   const Sidebar = () => (
     <aside className="flex h-full w-64 flex-col border-r bg-card">
       <div className="flex items-center justify-between border-b px-5 py-5">
         <Link to="/" className="font-bold text-primary">AUTOFORGE</Link>
-        <button className="lg:hidden" onClick={() => setOpen(false)}><X /></button>
+        <button type="button" aria-label="Close admin navigation" className="lg:hidden" onClick={() => setOpen(false)}><X /></button>
       </div>
       <nav className="flex-1 space-y-1 p-3">
         {nav.map(({ label, icon: Icon }) => (
@@ -106,7 +106,7 @@ function AdminDashboard() {
       <div className="lg:pl-64">
         <header className="flex h-16 items-center justify-between border-b bg-card px-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <button className="lg:hidden" onClick={() => setOpen(true)}><Menu /></button>
+            <button type="button" aria-label="Open admin navigation" className="lg:hidden" onClick={() => setOpen(true)}><Menu /></button>
             <h1 className="font-semibold">{section}</h1>
           </div>
           <div className="text-sm text-muted-foreground">{user?.name}</div>

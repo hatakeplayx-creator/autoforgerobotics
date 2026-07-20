@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchHomepageBlocks, updateHomepageBlock, type AdminHomepageBlock } from "@/services/adminApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -21,7 +21,7 @@ export default function CmsSection({ token }: { token?: string }) {
   const [editError, setEditError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  const loadBlocks = async () => {
+  const loadBlocks = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -32,9 +32,9 @@ export default function CmsSection({ token }: { token?: string }) {
     } finally {
       setLoading(false);
     }
-  };
+  },[token]);
 
-  useEffect(() => { loadBlocks(); }, [token]);
+  useEffect(() => { void loadBlocks(); }, [loadBlocks]);
 
   const handleConfigure = (block: AdminHomepageBlock) => {
     setSelectedBlock(block);

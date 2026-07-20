@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchCategories, createCategory, updateCategory, deleteCategory, type AdminCategory } from "@/services/adminApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -21,7 +21,7 @@ export default function CategoriesSection({ token }: { token?: string }) {
   const [deleting, setDeleting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -32,9 +32,9 @@ export default function CategoriesSection({ token }: { token?: string }) {
     } finally {
       setLoading(false);
     }
-  }
+  },[token]);
 
-  useEffect(() => { load(); }, [token]);
+  useEffect(() => { void load(); }, [load]);
 
   const filtered = categories.filter(
     (c) =>

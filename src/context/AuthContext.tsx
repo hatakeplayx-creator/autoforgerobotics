@@ -1,6 +1,6 @@
-import { createContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { apiFetch } from "@/services/api";
+import { ACCESS_TOKEN_KEY, apiFetch } from "@/services/api";
 
 export interface AuthUser {
   id: string;
@@ -12,7 +12,6 @@ export interface AuthUser {
 
 interface AuthResponse {
   accessToken: string;
-  refreshToken: string;
   user: AuthUser;
 }
 
@@ -20,6 +19,7 @@ interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   loading: boolean;
+  accessToken: string | null;
   login: (email: string, password: string) => Promise<boolean>;
   sendOtp: (phone: string) => Promise<boolean>;
   verifyOtp: (phone: string, otp: string, name?: string) => Promise<boolean>;
@@ -29,106 +29,63 @@ interface AuthContextType {
   updateProfile: (payload: { name?: string; email?: string }) => Promise<void>;
 }
 
-const ACCESS_TOKEN_KEY = "autoforge_access_token";
-const REFRESH_TOKEN_KEY = "autoforge_refresh_token";
-
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-async function refreshAccessToken(refreshToken: string): Promise<AuthResponse> {
+async function refreshAccessToken(): Promise<AuthResponse> {
   return apiFetch<AuthResponse>("/api/auth/refresh", {
     method: "POST",
-    body: JSON.stringify({ refreshToken }),
+    body: JSON.stringify({}),
   });
-}
-
-let refreshPromise: Promise<AuthResponse> | null = null;
-
-async function apiFetchWithAuth<T>(
-  path: string,
-  init: RequestInit = {},
-  accessToken: string | null,
-  setAccessToken: (token: string) => void,
-  setRefreshToken: (token: string) => void,
-  setUser: (user: AuthUser | null) => void,
-): Promise<T> {
-  const headers = new Headers(init.headers || {});
-  if (accessToken) {
-    headers.set("Authorization", `Bearer ${accessToken}`);
-  }
-
-  try {
-    return await apiFetch<T>(path, { ...init, headers });
-  } catch (err) {
-    const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-    if (!storedRefreshToken) {
-      setUser(null);
-      throw err;
-    }
-
-    if (!refreshPromise) {
-      refreshPromise = refreshAccessToken(storedRefreshToken);
-    }
-
-    try {
-      const newTokens = await refreshPromise;
-      setAccessToken(newTokens.accessToken);
-      setRefreshToken(newTokens.refreshToken);
-      setUser(newTokens.user);
-      localStorage.setItem(ACCESS_TOKEN_KEY, newTokens.accessToken);
-      localStorage.setItem(REFRESH_TOKEN_KEY, newTokens.refreshToken);
-
-      const newHeaders = new Headers(init.headers || {});
-      newHeaders.set("Authorization", `Bearer ${newTokens.accessToken}`);
-
-      return await apiFetch<T>(path, { ...init, headers: newHeaders });
-    } catch (refreshErr) {
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-      setUser(null);
-      throw refreshErr;
-    } finally {
-      refreshPromise = null;
-    }
-  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [refreshToken, setRefreshToken] = useState<string | null>(null);
 
   useEffect(() => {
     const storedAccessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-    const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-    
-    if (storedAccessToken && storedRefreshToken) {
+    if (storedAccessToken) {
       setAccessToken(storedAccessToken);
-      setRefreshToken(storedRefreshToken);
       
       // Verify token by fetching user profile
       (async () => {
         try {
-          const userData = await apiFetchWithAuth<AuthUser>(
+          const userData = await apiFetch<AuthUser>(
             "/api/me",
-            {},
-            storedAccessToken,
-            setAccessToken,
-            setRefreshToken,
-            setUser,
+            { headers: { Authorization: `Bearer ${storedAccessToken}` } },
           );
           setUser(userData);
         } catch {
           // An expired or revoked persisted session is an expected signed-out state.
           localStorage.removeItem(ACCESS_TOKEN_KEY);
-          localStorage.removeItem(REFRESH_TOKEN_KEY);
         } finally {
           setLoading(false);
         }
       })();
     } else {
-      setLoading(false);
+      (async () => {
+        try {
+          const auth = await refreshAccessToken();
+          setUser(auth.user);
+          setAccessToken(auth.accessToken);
+          localStorage.setItem(ACCESS_TOKEN_KEY, auth.accessToken);
+        } catch {
+          localStorage.removeItem(ACCESS_TOKEN_KEY);
+        } finally {
+          setLoading(false);
+        }
+      })();
     }
+  }, []);
+
+  useEffect(() => {
+    const onToken = (event: Event) => {
+      const detail = (event as CustomEvent<{ accessToken?: string }>).detail;
+      if (detail?.accessToken) setAccessToken(detail.accessToken);
+    };
+    window.addEventListener("autoforge:auth-token", onToken);
+    return () => window.removeEventListener("autoforge:auth-token", onToken);
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -139,9 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       setUser(auth.user);
       setAccessToken(auth.accessToken);
-      setRefreshToken(auth.refreshToken);
       localStorage.setItem(ACCESS_TOKEN_KEY, auth.accessToken);
-      localStorage.setItem(REFRESH_TOKEN_KEY, auth.refreshToken);
       toast.success(`Welcome back, ${auth.user.name}!`);
       return true;
     } catch (err) {
@@ -172,9 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       setUser(auth.user);
       setAccessToken(auth.accessToken);
-      setRefreshToken(auth.refreshToken);
       localStorage.setItem(ACCESS_TOKEN_KEY, auth.accessToken);
-      localStorage.setItem(REFRESH_TOKEN_KEY, auth.refreshToken);
       toast.success(`Welcome${name ? `, ${name}` : ""}!`);
       return true;
     } catch (err) {
@@ -184,24 +137,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (payload: { name: string; email: string; password: string; phone?: string }): Promise<boolean> => {
-    toast.error("Registration via email/password is disabled, use OTP login instead");
-    return false;
+    try {
+      const auth = await apiFetch<AuthResponse>("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          name: payload.name,
+          email: payload.email,
+          password: payload.password,
+          ...(payload.phone?.trim() ? { phone: payload.phone } : {}),
+          rememberMe: true,
+        }),
+      });
+      setUser(auth.user);
+      setAccessToken(auth.accessToken);
+      localStorage.setItem(ACCESS_TOKEN_KEY, auth.accessToken);
+      toast.success(`Welcome, ${auth.user.name}!`);
+      return true;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Registration failed");
+      return false;
+    }
   };
 
   const logout = async () => {
-    if (refreshToken) {
-      try {
-        await apiFetch("/api/auth/logout", {
-          method: "POST",
-          body: JSON.stringify({ refreshToken }),
-        });
-      } catch {}
+    try {
+      await apiFetch("/api/auth/logout", {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+    } catch {
+      // Logout is best-effort because a stale session may already be revoked.
     }
     localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
     setUser(null);
     setAccessToken(null);
-    setRefreshToken(null);
     toast.info("You have been logged out.");
   };
 
@@ -225,13 +194,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const updatedUser = await apiFetchWithAuth<AuthUser>(
+      const updatedUser = await apiFetch<AuthUser>(
         "/api/me",
-        { method: "PATCH", body: JSON.stringify(payload) },
-        accessToken,
-        setAccessToken,
-        setRefreshToken,
-        setUser,
+        { method: "PATCH", body: JSON.stringify(payload), headers: { Authorization: `Bearer ${accessToken}` } },
       );
       setUser(updatedUser);
       toast.success("Profile updated.");
@@ -240,21 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const value = useMemo<AuthContextType>(
-    () => ({
-      user,
-      isAuthenticated: !!user,
-      loading,
-      login,
-      sendOtp,
-      verifyOtp,
-      register,
-      logout,
-      requestPasswordReset,
-      updateProfile,
-    }),
-    [user, loading, accessToken, refreshToken],
-  );
+  const value:AuthContextType={user,isAuthenticated:!!user,loading,accessToken,login,sendOtp,verifyOtp,register,logout,requestPasswordReset,updateProfile};
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

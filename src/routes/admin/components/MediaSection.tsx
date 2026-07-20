@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { fetchMedia, uploadMedia, deleteMedia, updateMedia, type AdminMedia } from "@/services/adminApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -20,7 +20,7 @@ export default function MediaSection({ token }: { token?: string }) {
   const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const loadMedia = async () => {
+  const loadMedia = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -31,9 +31,9 @@ export default function MediaSection({ token }: { token?: string }) {
     } finally {
       setLoading(false);
     }
-  };
+  },[token]);
 
-  useEffect(() => { loadMedia(); }, [token]);
+  useEffect(() => { void loadMedia(); }, [loadMedia]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

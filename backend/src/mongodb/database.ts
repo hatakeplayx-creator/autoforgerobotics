@@ -49,7 +49,7 @@ type UpsertArgs = { where: JsonRecord; update: JsonRecord; create: JsonRecord; i
 export interface BaseRow { id: string; createdAt: Date; updatedAt: Date }
 export interface UserRow extends BaseRow { email: string; passwordHash: string | null; name: string; phone: string | null; role: Role; addresses: AddressRow[]; orders: OrderRow[] }
 export interface OtpRow extends BaseRow { phone: string; otp: string; userId: string | null; expiresAt: Date; attempts: number; usedAt: Date | null }
-export interface RefreshTokenRow extends BaseRow { tokenHash: string; userId: string; expiresAt: Date; revokedAt: Date | null; user: UserRow }
+export interface RefreshTokenRow extends BaseRow { tokenHash: string; userId: string; rememberMe: boolean; expiresAt: Date; revokedAt: Date | null; user: UserRow }
 export interface PasswordResetRow extends BaseRow { tokenHash: string; userId: string; expiresAt: Date; usedAt: Date | null }
 export interface AddressRow extends BaseRow { userId: string; line1: string; line2: string | null; city: string; state: string; postalCode: string; country: string }
 export interface MediaRow extends BaseRow { key: string; url: string; filename: string; mimeType: string; size: number; altText: string | null }
@@ -208,7 +208,11 @@ export class MongoDatabase {
     return output as unknown as Row;
   }
   async cascade(name: EntityName, id: string, session?: ClientSession): Promise<void> { const db=this.withSession(session); if(name==="product"){await Promise.all([db.productImage.deleteMany({where:{productId:id}}),db.inventoryMovement.deleteMany({where:{productId:id}}),db.cartItem.deleteMany({where:{productId:id}}),db.wishlistItem.deleteMany({where:{productId:id}}),db.productReview.deleteMany({where:{productId:id}})]);} if(name==="enquiry")await db.enquiryNote.deleteMany({where:{enquiryId:id}}); if(name==="productReview")await db.productReviewImage.deleteMany({where:{reviewId:id}}); }
-  async $transaction<T>(operation: ((database: MongoDatabase) => Promise<T>) | Promise<unknown>[]): Promise<T> { if(Array.isArray(operation)) return Promise.all(operation) as Promise<T>; return mongoose.connection.transaction((session)=>operation(this.withSession(session))) as Promise<T>; }
+  async $transaction<T>(operation: ((database: MongoDatabase) => Promise<T>) | Promise<unknown>[]): Promise<T> {
+    if(Array.isArray(operation)) return Promise.all(operation) as Promise<T>;
+    if(process.env.MONGODB_TRANSACTIONS !== "true") return operation(this);
+    return mongoose.connection.transaction((session)=>operation(this.withSession(session))) as Promise<T>;
+  }
   async ping(): Promise<void> { await mongoose.connection.db?.admin().ping(); }
 }
 

@@ -8,8 +8,8 @@ export const Route = createFileRoute("/admin/login")({ component: AdminLogin });
 function AdminLogin() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [email, setEmail] = useState("admin@autoforge.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   async function submit(event: React.FormEvent) {
@@ -29,10 +29,12 @@ function AdminLogin() {
       <div className="mb-7 flex size-12 items-center justify-center rounded-lg bg-primary text-primary-foreground"><ShieldCheck /></div>
       <h1 className="text-2xl font-bold">Admin portal</h1>
       <p className="mt-2 text-sm text-muted-foreground">Sign in to manage AutoForge Robotics.</p>
-      <label className="mt-6 block text-sm font-medium">Email<input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="mt-1.5 w-full rounded-md border bg-background px-3 py-2" /></label>
-      <label className="mt-4 block text-sm font-medium">Password<input value={password} onChange={(e) => setPassword(e.target.value)} type="password" className="mt-1.5 w-full rounded-md border bg-background px-3 py-2" /></label>
+      <label htmlFor="admin-email" className="mt-6 block text-sm font-medium">Email</label>
+      <input id="admin-email" value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="mt-1.5 w-full rounded-md border bg-background px-3 py-2" />
+      <label htmlFor="admin-password" className="mt-4 block text-sm font-medium">Password</label>
+      <input id="admin-password" value={password} onChange={(e) => setPassword(e.target.value)} type="password" className="mt-1.5 w-full rounded-md border bg-background px-3 py-2" />
       <button type="submit" disabled={submitting} className="mt-6 flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"><LockKeyhole className="size-4" /> {submitting ? "Signing in…" : "Sign in"}</button>
-      <p className="mt-4 text-center text-xs text-muted-foreground">Demo: admin@autoforge.com / admin123</p>
+      <p className="mt-4 text-center text-xs text-muted-foreground">Use an administrator account created through the secure seed process.</p>
     </form>
   </main>;
 }

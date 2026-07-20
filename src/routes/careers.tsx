@@ -11,19 +11,11 @@ function CareersPage() {
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-extrabold text-foreground">Careers</h1>
-          <p className="mt-2 text-muted-foreground">
-            Join our team!
-          </p>
+          <p className="mt-2 text-muted-foreground">Build the next generation of robotics commerce with AutoForge.</p>
         </div>
-        <div className="space-y-4">
-          {["Frontend Developer", "Backend Developer", "Sales Manager"].map((role, i) => (
-            <div key={i} className="border border-border rounded-lg p-4">
-              <h3 className="font-semibold text-foreground">{role}</h3>
-              <p className="text-sm text-muted-foreground">
-                This is a sample job listing for demonstration purposes.
-              </p>
-            </div>
-          ))}
+        <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
+          <h2 className="font-semibold text-foreground">No open positions</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Current openings will be listed here when available.</p>
         </div>
       </div>
     </StorePageShell>

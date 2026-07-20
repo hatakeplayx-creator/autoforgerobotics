@@ -270,7 +270,7 @@ export default function ProductsSection({ token }: { token?: string }) {
       </section>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editId ? "Edit product" : "Add product"}</DialogTitle>
           </DialogHeader>

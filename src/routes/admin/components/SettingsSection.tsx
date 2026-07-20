@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchSettings, saveSetting, type AdminSetting } from "@/services/adminApi";
 import { toast } from "sonner";
 
@@ -30,9 +30,6 @@ const SETTINGS_FIELDS: SettingField[] = [
   { key: "smtp_host", label: "SMTP Host" },
   { key: "smtp_port", label: "SMTP Port" },
   { key: "smtp_user", label: "SMTP User" },
-  { key: "smtp_pass", label: "SMTP Password", type: "password" },
-  { key: "razorpay_key_id", label: "Razorpay Key ID" },
-  { key: "razorpay_key_secret", label: "Razorpay Key Secret", type: "password" },
   { key: "gstin", label: "GSTIN" },
 ];
 
@@ -42,7 +39,7 @@ export default function SettingsSection({ token }: { token?: string }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -57,9 +54,9 @@ export default function SettingsSection({ token }: { token?: string }) {
     } finally {
       setLoading(false);
     }
-  };
+  },[token]);
 
-  useEffect(() => { loadSettings(); }, [token]);
+  useEffect(() => { void loadSettings(); }, [loadSettings]);
 
   const handleChange = (key: string, val: string) => {
     setValues((prev) => ({ ...prev, [key]: val }));

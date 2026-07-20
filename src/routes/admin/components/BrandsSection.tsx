@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchBrands, createBrand, updateBrand, deleteBrand, type AdminBrand } from "@/services/adminApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { resolveMediaUrl } from "@/services/api";
 import { Search } from "lucide-react";
 
 const emptyForm = { name: "", logoUrl: "", sortOrder: 0, active: true };
-const apiBase = import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, "") ?? "";
 
 function BrandThumbnail({ brand }: { brand: AdminBrand }) {
   const [failed, setFailed] = useState(false);
@@ -13,7 +13,7 @@ function BrandThumbnail({ brand }: { brand: AdminBrand }) {
   if (!brand.logoUrl || isPlaceholder || failed) {
     return <span className="flex h-8 w-8 items-center justify-center rounded bg-muted text-xs font-bold text-muted-foreground">{brand.name.slice(0, 2).toUpperCase()}</span>;
   }
-  const src = brand.logoUrl.startsWith("http") ? brand.logoUrl : `${apiBase}${brand.logoUrl}`;
+  const src = resolveMediaUrl(brand.logoUrl);
   return <img src={src} alt={brand.name} onError={() => setFailed(true)} className="h-8 w-8 rounded object-contain" />;
 }
 
@@ -27,15 +27,15 @@ export default function BrandsSection({ token }: { token?: string }) {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     fetchBrands(token)
       .then((res) => setBrands(res.value))
       .catch(() => toast.error("Failed to load brands"))
       .finally(() => setLoading(false));
-  };
+  },[token]);
 
-  useEffect(() => { load(); }, [token]);
+  useEffect(() => { load(); }, [load]);
 
   const filtered = brands.filter((b) => b.name.toLowerCase().includes(query.toLowerCase()));
 

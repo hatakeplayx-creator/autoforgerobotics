@@ -6,6 +6,7 @@ backend/dist/
 .vinxi/
 .tanstack/
 .nitro/
+.vercel/
 .wrangler/
 
 # Local runtime and test artifacts

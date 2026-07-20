@@ -3,10 +3,10 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 import { nitro } from "nitro/vite";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), "VITE_");
+  if (process.env.VERCEL) env.VITE_API_URL = "";
   const envDefine = Object.fromEntries(
     Object.entries(env).map(([key, value]) => [
       `import.meta.env.${key}`,
@@ -18,8 +18,10 @@ export default defineConfig(({ command, mode }) => {
     define: envDefine,
     plugins: [
       tailwindcss(),
-      tsconfigPaths({ projects: ["./tsconfig.json"] }),
       tanstackStart({
+        router: {
+          routeFileIgnorePattern: "components",
+        },
         importProtection: {
           behavior: "error",
           client: {
@@ -30,11 +32,15 @@ export default defineConfig(({ command, mode }) => {
         server: { entry: "server" },
       }),
       ...(command === "build"
-        ? [nitro({ preset: "node-server" })]
+        ? [nitro({
+            preset: process.env.VERCEL ? "vercel" : "node-server",
+            serverDir: "./server",
+          })]
         : []),
       react(),
     ],
     resolve: {
+      tsconfigPaths: true,
       alias: {
         "@": `${process.cwd()}/src`,
       },
@@ -60,6 +66,10 @@ export default defineConfig(({ command, mode }) => {
     server: {
       host: "::",
       port: 8080,
+      proxy: {
+        "/api": "http://127.0.0.1:4000",
+        "/uploads": "http://127.0.0.1:4000",
+      },
     },
   };
 });

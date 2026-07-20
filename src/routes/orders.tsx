@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { StorePageShell } from "@/components/store/StorePageShell";
 import { useAuth } from "@/hooks/useAuth";
 import { formatPrice } from "@/lib/store-data";
-import { apiFetch } from "@/services/api";
+import { apiFetch, authHeaders } from "@/services/api";
 import type { Order } from "@/types/store";
 
 export const Route = createFileRoute("/orders")({
@@ -21,9 +21,8 @@ function OrdersPage() {
     }
   }, [isAuthenticated, loading, navigate]);
   useEffect(() => {
-    const token = localStorage.getItem("autoforge_access_token");
-    if (!token || !isAuthenticated) return;
-    apiFetch<Order[]>("/api/me/orders", { headers: { Authorization: `Bearer ${token}` } })
+    if (!isAuthenticated) return;
+    apiFetch<Order[]>("/api/me/orders", { headers: authHeaders() })
       .then(setOrders)
       .catch(() => setOrders([]));
   }, [isAuthenticated]);

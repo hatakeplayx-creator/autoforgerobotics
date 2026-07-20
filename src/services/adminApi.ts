@@ -1,6 +1,6 @@
-import { apiFetch } from "@/services/api";
+import { apiFetch, apiUrl, authHeaders as buildAuthHeaders, resolveMediaUrl } from "@/services/api";
 
-const authHeaders = (token?: string): Record<string, string> => token ? { Authorization: `Bearer ${token}` } : {};
+const authHeaders = (token?: string): Record<string, string> => buildAuthHeaders(token);
 const collection = async <T>(path: string, token?: string): Promise<{ value: T[] }> => ({ value: await apiFetch<T[]>(path, { headers: authHeaders(token) }) });
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
@@ -169,7 +169,7 @@ export function deleteEnquiry(id: string, token?: string) {
 }
 
 export function exportEnquiriesCsv(token?: string) {
-  return fetch(`${new URL("/api/enquiries/export.csv", import.meta.env.VITE_API_URL)}`, { headers: authHeaders(token) });
+  return fetch(apiUrl("/api/enquiries/export.csv"), { credentials: "include", headers: authHeaders(token) });
 }
 
 // ─── Brands ──────────────────────────────────────────────────────────────────
@@ -222,17 +222,14 @@ export interface AdminMedia {
 }
 
 export function fetchMedia(token?: string) {
-  return collection<AdminMedia>("/api/media", token);
+  return collection<AdminMedia>("/api/media", token).then(({ value }) => ({ value: value.map(media => ({ ...media, url: resolveMediaUrl(media.url) })) }));
 }
 
 export async function uploadMedia(files: FileList, token?: string): Promise<AdminMedia[]> {
   const form = new FormData();
   for (let i = 0; i < files.length; i++) form.append("files", files[i]);
-  const resp = await fetch(`${import.meta.env.VITE_API_URL}/api/media`, {
-    method: "POST", body: form, headers: authHeaders(token),
-  });
-  if (!resp.ok) throw new Error("Upload failed");
-  return resp.json();
+  const media = await apiFetch<AdminMedia[]>("/api/media", { method: "POST", body: form, headers: authHeaders(token) });
+  return media.map(item => ({ ...item, url: resolveMediaUrl(item.url) }));
 }
 
 export function updateMedia(id: string, data: { filename?: string; altText?: string }, token?: string) {

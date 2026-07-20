@@ -1,6 +1,5 @@
-import { useState, useMemo } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Trash, ShoppingBag, Plus, Minus, Tag, Truck, ArrowRight, ShieldCheck } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Trash, ShoppingBag, Plus, Minus, ArrowRight, ShieldCheck } from "lucide-react";
 import { AnnouncementBar, TopBar } from "@/components/store/TopBar";
 import { StoreHeader } from "@/components/store/StoreHeader";
 import { NavBar } from "@/components/store/NavBar";
@@ -15,23 +14,10 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/cart")({
   component: CartPage,
 });
-
-const STATES = [
-  "Maharashtra",
-  "Delhi",
-  "Karnataka",
-  "Tamil Nadu",
-  "Telangana",
-  "Gujarat",
-  "Uttar Pradesh",
-  "West Bengal",
-  "Other State",
-];
 
 function CartPage() {
   const {
@@ -39,59 +25,15 @@ function CartPage() {
     removeFromCart,
     updateQuantity,
     clearCart,
-    applyCoupon,
-    removeCoupon,
-    appliedCoupon,
     subtotal,
-    discount,
     shipping,
     tax,
     total,
   } = useCart();
-
-  // Coupon state
-  const [couponCode, setCouponCode] = useState("");
-  
-  // Shipping Estimator state
-  const [estState, setEstState] = useState("");
-  const [estPin, setEstPin] = useState("");
-  const [shippingEstimate, setShippingEstimate] = useState<{
-    calculated: boolean;
-    cost: number;
-    days: number;
-  } | null>(null);
-
-  const handleApplyCoupon = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!couponCode.trim()) return;
-    const success = applyCoupon(couponCode);
-    if (success) {
-      setCouponCode("");
-    }
-  };
-
-  const handleEstimateShipping = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!estState || estPin.length < 6) {
-      toast.error("Please select a state and enter a valid 6-digit PIN Code.");
-      return;
-    }
-
-    // Mock shipping calculations
-    const deliveryDays = estState === "Maharashtra" ? 2 : 4;
-    setShippingEstimate({
-      calculated: true,
-      cost: shipping,
-      days: deliveryDays,
-    });
-    toast.success("Shipping cost estimated successfully.");
-  };
+  const navigate = useNavigate();
 
   const handleCheckout = () => {
-    toast.success("Order Placed Successfully! (Demo checkout complete)");
-    setTimeout(() => {
-      clearCart();
-    }, 1500);
+    void navigate({ to: "/checkout" });
   };
 
   return (
@@ -184,6 +126,8 @@ function CartPage() {
                       <div className="flex items-center gap-3">
                         <div className="flex items-center rounded-lg border border-border bg-secondary/30 h-8 overflow-hidden">
                           <button
+                            type="button"
+                            aria-label={`Decrease quantity of ${item.product.name}`}
                             onClick={() => updateQuantity(item.product.sku, item.quantity - 1)}
                             className="p-2 h-full flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
                           >
@@ -191,6 +135,8 @@ function CartPage() {
                           </button>
                           <span className="px-3 text-xs font-bold min-w-6 text-center select-none">{item.quantity}</span>
                           <button
+                            type="button"
+                            aria-label={`Increase quantity of ${item.product.name}`}
                             onClick={() => updateQuantity(item.product.sku, item.quantity + 1)}
                             className="p-2 h-full flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
                           >
@@ -219,116 +165,6 @@ function CartPage() {
                 </div>
               </div>
 
-              {/* Shipping Estimator and Coupon Actions */}
-              <div className="grid gap-6 sm:grid-cols-2">
-                {/* Shipping Calculator */}
-                <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
-                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
-                    <Truck className="h-4 w-4 text-primary" />
-                    <span>Estimate Shipping</span>
-                  </h3>
-                  <form onSubmit={handleEstimateShipping} className="space-y-3">
-                    <div>
-                      <label className="block text-[10px] text-muted-foreground font-semibold mb-1">State</label>
-                      <select
-                        required
-                        value={estState}
-                        onChange={(e) => {
-                          setEstState(e.target.value);
-                          setShippingEstimate(null);
-                        }}
-                        className="w-full h-9 rounded border border-border bg-background px-2.5 text-xs outline-none focus:border-primary cursor-pointer"
-                      >
-                        <option value="">Select State</option>
-                        {STATES.map((s) => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] text-muted-foreground font-semibold mb-1">PIN Code</label>
-                      <input
-                        type="text"
-                        required
-                        maxLength={6}
-                        pattern="\d{6}"
-                        value={estPin}
-                        onChange={(e) => {
-                          setEstPin(e.target.value.replace(/\D/g, ""));
-                          setShippingEstimate(null);
-                        }}
-                        placeholder="e.g. 411001"
-                        className="w-full h-9 rounded border border-border bg-background px-2.5 text-xs outline-none focus:border-primary"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full py-2 bg-secondary border border-border text-foreground hover:bg-secondary/60 text-xs font-semibold rounded cursor-pointer transition-colors"
-                    >
-                      Calculate Cost
-                    </button>
-                  </form>
-
-                  {shippingEstimate && (
-                    <div className="mt-4 p-3 bg-primary/5 rounded border border-primary/10 text-xs space-y-1">
-                      <p className="text-foreground">
-                        Shipping Fee: <strong>{shippingEstimate.cost === 0 ? "FREE" : formatPrice(shippingEstimate.cost)}</strong>
-                      </p>
-                      <p className="text-muted-foreground">
-                        Estimated Delivery: <strong>{shippingEstimate.days} Days</strong> (PIN: {estPin})
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Coupon Code Applying */}
-                <div className="bg-card border border-border rounded-xl p-5 shadow-sm h-fit">
-                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
-                    <Tag className="h-4 w-4 text-primary" />
-                    <span>Apply Discount Coupon</span>
-                  </h3>
-                  <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="e.g. AUTOFIRST"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      className="flex-1 h-9 rounded border border-border bg-background px-2.5 text-xs outline-none focus:border-primary uppercase"
-                    />
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold rounded cursor-pointer transition-colors"
-                    >
-                      Apply
-                    </button>
-                  </form>
-
-                  {appliedCoupon && (
-                    <div className="mt-4 p-3 bg-emerald-500/5 rounded border border-emerald-500/10 text-xs flex items-center justify-between">
-                      <div>
-                        <p className="text-emerald-700 font-semibold">Active: {appliedCoupon.code}</p>
-                        <p className="text-muted-foreground text-[10px]">
-                          Discount: {appliedCoupon.type === "percent" ? `${appliedCoupon.value}%` : formatPrice(appliedCoupon.value)} Off
-                        </p>
-                      </div>
-                      <button
-                        onClick={removeCoupon}
-                        className="text-[10px] text-destructive hover:underline font-bold cursor-pointer"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="mt-4 p-3 bg-secondary/30 rounded border border-border text-[11px] text-muted-foreground space-y-1">
-                    <p>💡 Demo Coupons to try:</p>
-                    <p>• <strong>AUTOFIRST</strong>: 10% discount on cart subtotal</p>
-                    <p>• <strong>FREE500</strong>: ₹500 flat discount</p>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Right Summary Column */}
@@ -341,13 +177,6 @@ function CartPage() {
                     <span>Subtotal</span>
                     <span className="font-semibold text-foreground">{formatPrice(subtotal)}</span>
                   </div>
-
-                  {discount > 0 && (
-                    <div className="flex items-center justify-between text-emerald-600 font-medium">
-                      <span>Coupon Discount</span>
-                      <span>-{formatPrice(discount)}</span>
-                    </div>
-                  )}
 
                   <div className="flex items-center justify-between text-muted-foreground">
                     <span>Shipping Charges</span>

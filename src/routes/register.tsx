@@ -36,8 +36,9 @@ function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Name</label>
+            <label htmlFor="register-name" className="mb-1 block text-xs font-semibold text-muted-foreground">Name</label>
             <input
+              id="register-name"
               type="text"
               required
               value={name}
@@ -46,8 +47,9 @@ function RegisterPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Email</label>
+            <label htmlFor="register-email" className="mb-1 block text-xs font-semibold text-muted-foreground">Email</label>
             <input
+              id="register-email"
               type="email"
               required
               value={email}
@@ -56,8 +58,9 @@ function RegisterPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Phone (optional)</label>
+            <label htmlFor="register-phone" className="mb-1 block text-xs font-semibold text-muted-foreground">Phone (optional)</label>
             <input
+              id="register-phone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -65,15 +68,17 @@ function RegisterPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Password</label>
+            <label htmlFor="register-password" className="mb-1 block text-xs font-semibold text-muted-foreground">Password</label>
             <input
+              id="register-password"
               type="password"
               required
-              minLength={6}
+              minLength={10}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus:border-primary"
             />
+            <p className="mt-1 text-[11px] text-muted-foreground">Use at least 10 characters with uppercase, lowercase, and a number.</p>
           </div>
           <Button type="submit" className="w-full">
             Create Account

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   fetchEnquiries,
   updateEnquiryStatus,
@@ -32,15 +32,15 @@ export default function EnquiriesSection({ token }: { token?: string }) {
   const [noteText, setNoteText] = useState("");
   const [submittingNote, setSubmittingNote] = useState(false);
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     fetchEnquiries(token, statusFilter === "ALL" ? undefined : statusFilter)
       .then((res) => setEnquiries(res.value))
       .catch(() => toast.error("Failed to load enquiries"))
       .finally(() => setLoading(false));
-  };
+  },[statusFilter,token]);
 
-  useEffect(() => { load(); }, [token, statusFilter]);
+  useEffect(() => { load(); }, [load]);
 
   const filtered = enquiries.filter((e) => {
     const q = query.toLowerCase();

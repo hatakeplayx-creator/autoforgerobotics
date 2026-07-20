@@ -1,15 +1,9 @@
-import { apiFetch } from "@/services/api";
+import { apiFetch, resolveMediaUrl } from "@/services/api";
 import type { Category, HeroBanner, Product, ServiceItem } from "@/types/store";
 
 type HomepageBlock = { id: string; key: string; content: unknown };
 let categoriesRequest: Promise<Category[]> | null = null;
 let homepageBlocksRequest: Promise<HomepageBlock[]> | null = null;
-
-function apiAsset(url?: string) {
-  if (!url || /^https?:\/\//.test(url)) return url;
-  const base = import.meta.env.VITE_API_URL?.replace(/\/$/, "") ?? "";
-  return `${base}${url}`;
-}
 
 function normalizeProduct(product: Product): Product {
   return {
@@ -17,7 +11,7 @@ function normalizeProduct(product: Product): Product {
     price: Number(product.price),
     compareAtPrice: product.compareAtPrice == null ? undefined : Number(product.compareAtPrice),
     gstPercentage: Number(product.gstPercentage),
-    images: (product.images ?? []).map((image) => ({ ...image, media: { ...image.media, url: apiAsset(image.media.url) ?? "" } })),
+    images: (product.images ?? []).map((image) => ({ ...image, media: { ...image.media, url: resolveMediaUrl(image.media.url) } })),
   };
 }
 
@@ -41,7 +35,7 @@ export async function getProductBySku(sku: string): Promise<Product | undefined>
 export async function getCategories(): Promise<Category[]> {
   if (!categoriesRequest) {
     categoriesRequest = apiFetch<Category[]>("/api/categories")
-      .then((categories) => categories.map((category) => ({ ...category, image: category.image ? { ...category.image, url: apiAsset(category.image.url) ?? "" } : undefined })))
+      .then((categories) => categories.map((category) => ({ ...category, image: category.image ? { ...category.image, url: resolveMediaUrl(category.image.url) } : undefined })))
       .catch((error: unknown) => {
         categoriesRequest = null;
         throw error;
@@ -66,7 +60,7 @@ export async function getHeroBanners(): Promise<HeroBanner[]> {
   return block.content.flatMap((item) => {
     if (!item || typeof item !== "object") return [];
     const value = item as { image?: string; alt?: string; title?: string };
-    return value.image ? [{ image: apiAsset(value.image) ?? "", alt: value.alt ?? value.title ?? "Hero banner" }] : [];
+    return value.image ? [{ image: resolveMediaUrl(value.image), alt: value.alt ?? value.title ?? "Hero banner" }] : [];
   });
 }
 

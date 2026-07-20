@@ -22,19 +22,19 @@ export function useProducts(filters?: {
   sortBy?: string;
 }) {
   const deferredFilters = useDeferredValue(filters);
+  const filterString = JSON.stringify(deferredFilters);
   const [state, setState] = useState<QueryState<Product[]>>({
     data: null,
     loading: true,
     error: null,
   });
 
-  const filterString = JSON.stringify(deferredFilters);
-
   useEffect(() => {
     let active = true;
     setState((prev) => ({ ...prev, loading: true }));
 
-    getProducts(deferredFilters)
+    const stableFilters = filterString ? JSON.parse(filterString) as typeof filters : undefined;
+    getProducts(stableFilters)
       .then((products) => {
         if (!active) return;
         setState({ data: products, loading: false, error: null });

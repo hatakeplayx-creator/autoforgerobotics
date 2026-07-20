@@ -61,8 +61,9 @@ function LoginPage() {
             <form onSubmit={handleVerifyOtp}>
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-muted-foreground">Phone Number</label>
+                  <label htmlFor="login-phone" className="mb-1 block text-xs font-semibold text-muted-foreground">Phone Number</label>
                   <input
+                    id="login-phone"
                     type="tel"
                     required
                     value={phone}
@@ -78,8 +79,9 @@ function LoginPage() {
                 ) : (
                   <>
                     <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted-foreground">Name (for new users)</label>
+                      <label htmlFor="login-otp-name" className="mb-1 block text-xs font-semibold text-muted-foreground">Name (for new users)</label>
                       <input
+                        id="login-otp-name"
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
@@ -88,8 +90,9 @@ function LoginPage() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted-foreground">OTP</label>
+                      <label htmlFor="login-otp" className="mb-1 block text-xs font-semibold text-muted-foreground">OTP</label>
                       <input
+                        id="login-otp"
                         type="text"
                         required
                         value={otp}
@@ -116,8 +119,9 @@ function LoginPage() {
             <form onSubmit={handleEmailLoginSubmit}>
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-muted-foreground">Email</label>
+                  <label htmlFor="login-email" className="mb-1 block text-xs font-semibold text-muted-foreground">Email</label>
                   <input
+                    id="login-email"
                     type="email"
                     required
                     value={email}
@@ -126,8 +130,9 @@ function LoginPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-muted-foreground">Password</label>
+                  <label htmlFor="login-password" className="mb-1 block text-xs font-semibold text-muted-foreground">Password</label>
                   <input
+                    id="login-password"
                     type="password"
                     required
                     value={password}

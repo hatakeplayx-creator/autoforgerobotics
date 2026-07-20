@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import type { JsonValue } from "../mongodb/models.js";
 
 interface Setting {
@@ -12,6 +13,7 @@ export interface OTPProvider {
 // Mock OTP provider for development
 class MockOTPProvider implements OTPProvider {
   async send(phone: string, otp: string): Promise<void> {
+    if (process.env.NODE_ENV === "production") throw new Error("OTP provider is not configured");
     console.log(`[Mock] Sending OTP ${otp} to ${phone}`);
   }
 }
@@ -29,8 +31,8 @@ class TwilioOTPProvider implements OTPProvider {
   }
 
   async send(phone: string, otp: string): Promise<void> {
-    // Implement Twilio integration here
-    console.log(`[Twilio] Would send OTP ${otp} to ${phone}`);
+    void phone; void otp;
+    throw new Error("Twilio OTP provider is not implemented");
   }
 }
 
@@ -45,8 +47,8 @@ class MSG91OTPProvider implements OTPProvider {
   }
 
   async send(phone: string, otp: string): Promise<void> {
-    // Implement MSG91 integration here
-    console.log(`[MSG91] Would send OTP ${otp} to ${phone}`);
+    void phone; void otp;
+    throw new Error("MSG91 OTP provider is not implemented");
   }
 }
 
@@ -61,8 +63,8 @@ class WhatsAppOTPProvider implements OTPProvider {
   }
 
   async send(phone: string, otp: string): Promise<void> {
-    // Implement WhatsApp integration here
-    console.log(`[WhatsApp] Would send OTP ${otp} to ${phone}`);
+    void phone; void otp;
+    throw new Error("WhatsApp OTP provider is not implemented");
   }
 }
 
@@ -94,9 +96,10 @@ export function createOTPProvider(settings: Setting[]): OTPProvider {
 }
 
 export function generateOTP(length: number = 6): string {
+  if (!Number.isInteger(length) || length < 4 || length > 8) throw new Error("OTP length must be between 4 and 8");
   let otp = "";
   for (let i = 0; i < length; i++) {
-    otp += Math.floor(Math.random() * 10).toString();
+    otp += randomInt(0, 10).toString();
   }
   return otp;
 }

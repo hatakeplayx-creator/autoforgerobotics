@@ -141,7 +141,7 @@ function RootComponent() {
           <WishlistProvider>
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />
-            <Toaster position="top-right" closeButton richColors />
+            <Toaster position="bottom-right" closeButton richColors />
           </WishlistProvider>
         </CartProvider>
       </AuthProvider>

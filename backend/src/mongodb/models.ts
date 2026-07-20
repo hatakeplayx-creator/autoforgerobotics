@@ -196,6 +196,7 @@ export const OtpModel = sourceModel("Otp", flexible("otps", {
 export const RefreshTokenModel = sourceModel("RefreshToken", flexible("refresh_tokens", {
   tokenHash: { type: String, required: true, unique: true },
   userId: { type: String, required: true, index: true },
+  rememberMe: { type: Boolean, required: true, default: false },
   expiresAt: { type: Date, required: true },
   revokedAt: { type: Date, default: null },
 }));
