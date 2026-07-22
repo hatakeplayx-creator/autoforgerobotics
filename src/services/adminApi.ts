@@ -219,17 +219,43 @@ export function deleteHomepageBlock(id: string, token?: string) {
 export interface AdminMedia {
   id: string; key: string; url: string; filename: string; mimeType: string;
   size: number; altText?: string | null; createdAt: string;
+  provider?: "local" | "cloudinary" | "external"; publicId?: string | null;
+  secureUrl?: string | null; format?: string | null; width?: number | null; height?: number | null;
 }
 
 export function fetchMedia(token?: string) {
   return collection<AdminMedia>("/api/media", token).then(({ value }) => ({ value: value.map(media => ({ ...media, url: resolveMediaUrl(media.url) })) }));
 }
 
-export async function uploadMedia(files: FileList, token?: string): Promise<AdminMedia[]> {
+function sendMediaForm<T>(path: string, form: FormData, token?: string, onProgress?: (percent: number) => void): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", apiUrl(path));
+    if (token) request.setRequestHeader("Authorization", `Bearer ${token}`);
+    request.upload.onprogress = (event) => { if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100)); };
+    request.onerror = () => reject(new Error("Upload failed because the network connection was interrupted"));
+    request.onload = () => {
+      let body: unknown;
+      try { body = request.responseText ? JSON.parse(request.responseText) : undefined; } catch { body = undefined; }
+      if (request.status >= 200 && request.status < 300) resolve(body as T);
+      else reject(new Error((body as { message?: string } | undefined)?.message ?? `Upload failed (${request.status})`));
+    };
+    request.send(form);
+  });
+}
+
+export async function uploadMedia(files: FileList, token?: string, onProgress?: (percent: number) => void, folder = "media"): Promise<AdminMedia[]> {
   const form = new FormData();
   for (let i = 0; i < files.length; i++) form.append("files", files[i]);
-  const media = await apiFetch<AdminMedia[]>("/api/media", { method: "POST", body: form, headers: authHeaders(token) });
+  form.append("folder", folder);
+  const media = await sendMediaForm<AdminMedia[]>("/api/media", form, token, onProgress);
   return media.map(item => ({ ...item, url: resolveMediaUrl(item.url) }));
+}
+
+export async function replaceMedia(id: string, file: File, token?: string, onProgress?: (percent: number) => void, folder = "media"): Promise<AdminMedia> {
+  const form = new FormData(); form.append("file", file); form.append("folder", folder);
+  const media = await sendMediaForm<AdminMedia>(`/api/media/${id}/replace`, form, token, onProgress);
+  return { ...media, url: resolveMediaUrl(media.url) };
 }
 
 export function updateMedia(id: string, data: { filename?: string; altText?: string }, token?: string) {

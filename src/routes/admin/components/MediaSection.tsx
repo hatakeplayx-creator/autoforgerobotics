@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from "react";
-import { fetchMedia, uploadMedia, deleteMedia, updateMedia, type AdminMedia } from "@/services/adminApi";
+import { fetchMedia, uploadMedia, deleteMedia, replaceMedia, updateMedia, type AdminMedia } from "@/services/adminApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
@@ -13,12 +13,16 @@ export default function MediaSection({ token }: { token?: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadFolder, setUploadFolder] = useState("media");
+  const [replaceTarget, setReplaceTarget] = useState<AdminMedia | null>(null);
   const [editItem, setEditItem] = useState<AdminMedia | null>(null);
   const [editFilename, setEditFilename] = useState("");
   const [editAltText, setEditAltText] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<AdminMedia | null>(null);
   const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
 
   const loadMedia = useCallback(async () => {
     setLoading(true);
@@ -38,18 +42,29 @@ export default function MediaSection({ token }: { token?: string }) {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    if (files.length > 8 || Array.from(files).some((file) => file.size > 4 * 1024 * 1024) || Array.from(files).reduce((sum,file)=>sum+file.size,0) > 4.3 * 1024 * 1024) { toast.error("Select up to 8 supported images, each under 4 MB and under 4.3 MB total"); e.target.value=""; return; }
     setUploading(true);
+    setUploadProgress(0);
     const toastId = toast.loading(`Uploading ${files.length} file(s)...`);
     try {
-      await uploadMedia(files, token);
+      await uploadMedia(files, token, setUploadProgress, uploadFolder);
       toast.success("Upload complete", { id: toastId });
       loadMedia();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed", { id: toastId });
     } finally {
       setUploading(false);
+      setUploadProgress(0);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const handleReplacement = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file=event.target.files?.[0]; if(!file||!replaceTarget)return;
+    setUploading(true);setUploadProgress(0);const toastId=toast.loading(`Replacing ${replaceTarget.filename}...`);
+    try{await replaceMedia(replaceTarget.id,file,token,setUploadProgress,uploadFolder);toast.success("Image replaced",{id:toastId});setReplaceTarget(null);await loadMedia();}
+    catch(err){toast.error(err instanceof Error?err.message:"Replacement failed",{id:toastId});}
+    finally{setUploading(false);setUploadProgress(0);if(replaceInputRef.current)replaceInputRef.current.value="";}
   };
 
   const handleRename = (item: AdminMedia) => {
@@ -94,6 +109,7 @@ export default function MediaSection({ token }: { token?: string }) {
             Upload and manage images
           </p>
         </div>
+        <label className="text-sm font-medium">Destination <select value={uploadFolder} onChange={(event)=>setUploadFolder(event.target.value)} disabled={uploading} className="ml-2 rounded-md border bg-background px-3 py-2"><option value="products">Products</option><option value="categories">Categories</option><option value="brands">Brands</option><option value="homepage">Homepage</option><option value="cms">CMS</option><option value="media">General media</option><option value="temp">Temporary</option></select></label>
         <button
           className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           disabled={uploading}
@@ -104,12 +120,14 @@ export default function MediaSection({ token }: { token?: string }) {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/avif"
           multiple
           className="hidden"
           onChange={handleUpload}
         />
+        <input ref={replaceInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" onChange={handleReplacement} />
       </div>
+      {uploading && <div className="space-y-1" role="status" aria-live="polite"><div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-[width]" style={{width:`${uploadProgress}%`}} /></div><p className="text-xs text-muted-foreground">Uploading {uploadProgress}%</p></div>}
 
       {loading && (
         <div className="flex items-center justify-center py-12">
@@ -145,6 +163,7 @@ export default function MediaSection({ token }: { token?: string }) {
                 {media.filename}
               </p>
               <p className="text-xs text-muted-foreground">{formatSize(media.size)}</p>
+              {(media.width&&media.height) ? <p className="text-xs text-muted-foreground">{media.width} × {media.height} · {media.format?.toUpperCase()}</p> : null}
               {media.altText && (
                 <p className="text-xs text-muted-foreground truncate" title={media.altText}>
                   {media.altText}
@@ -154,6 +173,7 @@ export default function MediaSection({ token }: { token?: string }) {
                 <button onClick={() => handleRename(media)} className="rounded border px-3 py-1.5 text-sm">
                   Rename
                 </button>
+                <button disabled={uploading} onClick={() => { setReplaceTarget(media); replaceInputRef.current?.click(); }} className="rounded border px-3 py-1.5 text-sm disabled:opacity-50">Replace</button>
                 <button
                   onClick={() => setDeleteConfirm(media)}
                   className="rounded border border-destructive px-3 py-1.5 text-sm text-destructive"

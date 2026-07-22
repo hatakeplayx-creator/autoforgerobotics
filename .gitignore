@@ -20,6 +20,7 @@ backend/dist/
 # Keep uploaded application data out of Git while preserving the directory
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/cloudinary-migration-manifest.json
 
 # Editors and operating systems
 .vscode/*

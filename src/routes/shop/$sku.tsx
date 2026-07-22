@@ -10,6 +10,7 @@ import { ProductCard } from "@/components/store/ProductCard";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useProductDetails, useProducts } from "@/hooks/useStoreData";
+import { mediaVariantUrl } from "@/lib/media";
 import { formatPrice } from "@/lib/store-data";
 import type { Product } from "@/types/store";
 import { Badge } from "@/components/ui/badge";
@@ -188,12 +189,10 @@ function ProductDetailsPage() {
 
   const brandName = getProductBrand(product);
   const specifications = getSpecifications(product);
-  const productImage = product.images[0]?.media?.url || fallbackProductImage;
-  const galleryImages = [
-    { url: productImage, label: "Front view", style: {} },
-    { url: productImage, label: "Rear view", style: { transform: "scaleX(-1)" } },
-    { url: productImage, label: "Detail view", style: { transform: "rotate(90deg) scale(1.08)" } },
-  ];
+  const productImage = mediaVariantUrl(product.images[0]?.media?.url, "productDetail") || fallbackProductImage;
+  const galleryImages = product.images.length
+    ? product.images.map((image,index)=>({url:mediaVariantUrl(image.media.url,"productDetail"),label:image.media.altText||`${product.name} image ${index+1}`,style:{}}))
+    : [{url:productImage,label:product.name,style:{}}];
   const isOutOfStock = product.stockQuantity <= 0;
   const cartCompatibleProduct = { ...product, tag: brandName, image: productImage, reviews: 0, outOfStock: isOutOfStock };
 

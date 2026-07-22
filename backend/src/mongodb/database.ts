@@ -52,7 +52,7 @@ export interface OtpRow extends BaseRow { phone: string; otp: string; userId: st
 export interface RefreshTokenRow extends BaseRow { tokenHash: string; userId: string; rememberMe: boolean; expiresAt: Date; revokedAt: Date | null; user: UserRow }
 export interface PasswordResetRow extends BaseRow { tokenHash: string; userId: string; expiresAt: Date; usedAt: Date | null }
 export interface AddressRow extends BaseRow { userId: string; line1: string; line2: string | null; city: string; state: string; postalCode: string; country: string }
-export interface MediaRow extends BaseRow { key: string; url: string; filename: string; mimeType: string; size: number; altText: string | null }
+export interface MediaRow extends BaseRow { key: string; url: string; provider: "local" | "cloudinary" | "external"; publicId: string | null; secureUrl: string | null; resourceType: "image"; format: string | null; width: number | null; height: number | null; bytes: number | null; version: number | null; originalFilename: string | null; filename: string; mimeType: string; size: number; altText: string | null }
 export interface CategoryRow extends BaseRow { name: string; slug: string; imageId: string | null; image: MediaRow | null; _count: { products: number } }
 export interface ProductImageRow extends BaseRow { productId: string; mediaId: string; sortOrder: number; media: MediaRow }
 export interface ProductRow extends BaseRow { name: string; slug: string; sku: string; description: string | null; specifications?: JsonRecord; brand: string | null; price: string | number; compareAtPrice: string | number | null; stockQuantity: number; lowStockThreshold: number; featured: boolean; categoryId: string | null; hsnCode: string | null; gstPercentage: string | number; category: CategoryRow | null; images: ProductImageRow[]; inventoryMovements: InventoryMovementRow[] }
@@ -84,7 +84,7 @@ const defaults: Partial<Record<EntityName, JsonRecord>> = {
   inventoryMovement: { note: null }, order: { status: OrderStatus.PENDING, tax: "0", shipping: "0", billingAddressId: null, shippingAddressId: null, paidAt: null, confirmedAt: null },
   payment: { provider: PaymentProvider.RAZORPAY, status: PaymentStatus.PENDING, razorpayOrderId: null, razorpayPaymentId: null, razorpaySignature: null, transactionId: null, failureReason: null, paymentMethod: null, transactionTime: null },
   shipment: { provider: null, awbNumber: null, trackingNumber: null, courierName: null, estimatedDelivery: null, status: ShipmentStatus.PENDING, labelUrl: null, trackingUrl: null },
-  brandCollaboration: { sortOrder: 0, active: true }, enquiry: { phone: null, companyName: null, status: EnquiryStatus.NEW }, media: { altText: null }, address: { line2: null },
+  brandCollaboration: { sortOrder: 0, active: true }, enquiry: { phone: null, companyName: null, status: EnquiryStatus.NEW }, media: { altText: null, provider: "local", publicId: null, secureUrl: null, resourceType: "image", format: null, width: null, height: null, bytes: null, version: null, originalFilename: null }, address: { line2: null },
 };
 
 function createId(): string { return `c${randomBytes(12).toString("hex")}`; }

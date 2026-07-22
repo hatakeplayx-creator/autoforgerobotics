@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { Search } from "lucide-react";
 import { ApiError } from "@/services/api";
+import MediaPicker from "./MediaPicker";
 
 type FormData = {
   name: string;
@@ -300,7 +301,7 @@ export default function ProductsSection({ token }: { token?: string }) {
             </div>
             <Input label="Brand (optional)" value={formData.brand} onChange={(v) => setFormData((p) => ({ ...p, brand: v }))} />
             <label className="text-sm font-medium">Specifications (JSON object, optional)<textarea value={formData.specifications} onChange={(e) => setFormData((p) => ({ ...p, specifications: e.target.value }))} rows={3} className="mt-1.5 w-full rounded-md border bg-background px-3 py-2 text-sm" placeholder='{"voltage":"5V"}' /></label>
-            <Input label="Media IDs (comma-separated, optional)" value={formData.imageIds} onChange={(v) => setFormData((p) => ({ ...p, imageIds: v }))} />
+            <MediaPicker token={token} max={10} value={formData.imageIds.split(",").map(value=>value.trim()).filter(Boolean)} onChange={(values)=>setFormData((previous)=>({...previous,imageIds:values.join(", ")}))} label="Product gallery (first image is primary)" />
             <div className="grid grid-cols-2 gap-4">
               <Input label="Stock Quantity" type="number" value={formData.stockQuantity} onChange={(v) => setFormData((p) => ({ ...p, stockQuantity: v }))} required />
               <Input label="Low Stock Threshold" type="number" value={formData.lowStockThreshold} onChange={(v) => setFormData((p) => ({ ...p, lowStockThreshold: v }))} />

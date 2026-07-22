@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useCategories } from "@/hooks/useStoreData";
 import { Skeleton } from "@/components/ui/skeleton";
 import fallbackCategoryImage from "@/assets/cat-components.jpg";
+import { mediaVariantUrl } from "@/lib/media";
 
 export function CategoryGrid() {
   const { data: categoriesList, loading, error } = useCategories();
@@ -64,7 +65,7 @@ export function CategoryGrid() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {categoriesList.slice(0, 8).map((cat, index) => {
-          const image = (typeof cat.image === "string" ? cat.image : cat.image?.url) || fallbackCategoryImage;
+          const image = mediaVariantUrl(typeof cat.image === "string" ? cat.image : cat.image?.url, "categoryCard") || fallbackCategoryImage;
           return (
             <Link
               key={cat.name}

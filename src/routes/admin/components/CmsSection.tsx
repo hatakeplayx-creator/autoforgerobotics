@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchHomepageBlocks, updateHomepageBlock, type AdminHomepageBlock } from "@/services/adminApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import MediaPicker from "./MediaPicker";
 
 const BLOCK_LABELS: Record<string, string> = {
   hero_banners: "Hero banner, text and buttons",
@@ -20,6 +21,9 @@ export default function CmsSection({ token }: { token?: string }) {
   const [editContent, setEditContent] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertMediaUrl = (values:string[]) => { const url=values[0]; if(!url)return; const start=contentRef.current?.selectionStart??editContent.length;const end=contentRef.current?.selectionEnd??start;setEditContent(`${editContent.slice(0,start)}${JSON.stringify(url)}${editContent.slice(end)}`); };
 
   const loadBlocks = useCallback(async () => {
     setLoading(true);
@@ -148,8 +152,10 @@ export default function CmsSection({ token }: { token?: string }) {
             </DialogTitle>
           </DialogHeader>
           <div>
+            <MediaPicker token={token} valueType="url" value={[]} onChange={insertMediaUrl} label="Insert media URL at cursor" />
             <label className="text-sm font-medium">Content (JSON)</label>
             <textarea
+              ref={contentRef}
               className="mt-1.5 h-96 w-full rounded-md border px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring"
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}

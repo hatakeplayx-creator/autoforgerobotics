@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchBrands, createBrand, updateBrand, deleteBrand, type AdminBrand } from "@/services/adminApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { resolveMediaUrl } from "@/services/api";
+import { mediaVariantUrl } from "@/lib/media";
 import { Search } from "lucide-react";
+import MediaPicker from "./MediaPicker";
 
 const emptyForm = { name: "", logoUrl: "", sortOrder: 0, active: true };
 
@@ -13,7 +14,7 @@ function BrandThumbnail({ brand }: { brand: AdminBrand }) {
   if (!brand.logoUrl || isPlaceholder || failed) {
     return <span className="flex h-8 w-8 items-center justify-center rounded bg-muted text-xs font-bold text-muted-foreground">{brand.name.slice(0, 2).toUpperCase()}</span>;
   }
-  const src = resolveMediaUrl(brand.logoUrl);
+  const src = mediaVariantUrl(brand.logoUrl, "brandLogo");
   return <img src={src} alt={brand.name} onError={() => setFailed(true)} className="h-8 w-8 rounded object-contain" />;
 }
 
@@ -161,6 +162,7 @@ export default function BrandsSection({ token }: { token?: string }) {
                 placeholder="https://..."
               />
             </label>
+            <MediaPicker token={token} valueType="url" value={form.logoUrl?[form.logoUrl]:[]} onChange={(values)=>setForm((previous)=>({...previous,logoUrl:values[0]??""}))} label="Select logo from media library" />
             <label className="text-sm font-medium">
               Sort order
               <input

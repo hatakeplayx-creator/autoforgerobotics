@@ -22,4 +22,4 @@ Set `MONGODB_TRANSACTIONS=true` only when the database is Atlas or a configured
 replica set. `JWT_SECRET` is the only value required for ordinary local API
 startup; the root example documents every optional integration.
 
-Uploads are stored under `UPLOAD_DIR` for local/self-hosted deployments and served at `/uploads`. Use a shared object storage volume or replace the storage adapter with S3/R2 for horizontally scaled hosting. SMTP variables enable transactional notifications.
+Local development can explicitly store uploads under `UPLOAD_DIR` and serve them at `/uploads`. Vercel Preview and Production require the backend-only Cloudinary configuration documented in `../VERCEL_DEPLOYMENT.md`; the application fails closed if it is absent. SMTP variables enable transactional notifications.

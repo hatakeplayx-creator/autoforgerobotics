@@ -5,11 +5,12 @@ import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import type { Product } from "@/types/store";
 import fallbackProductImage from "@/assets/cat-dev-boards.jpg";
+import { mediaVariantUrl } from "@/lib/media";
 
 export function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
-  const productImage = product.images[0]?.media?.url || fallbackProductImage;
+  const productImage = mediaVariantUrl(product.images[0]?.media?.url, "productCard") || fallbackProductImage;
   const isOutOfStock = product.stockQuantity <= 0;
   const brand = product.brand || "AutoForge";
   const reviews = 0;

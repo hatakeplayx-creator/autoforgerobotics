@@ -50,6 +50,16 @@ export interface CategoryDocument extends MongoSourceDocument {
 export interface MediaDocument extends MongoSourceDocument {
   key: string;
   url: string;
+  provider?: "local" | "cloudinary" | "external";
+  publicId?: string | null;
+  secureUrl?: string | null;
+  resourceType?: "image";
+  format?: string | null;
+  width?: number | null;
+  height?: number | null;
+  bytes?: number | null;
+  version?: number | null;
+  originalFilename?: string | null;
   filename: string;
   mimeType: string;
   size: number;
@@ -150,6 +160,16 @@ const mediaSchema = sourceSchema<MediaDocument>(
   {
     key: { type: String, required: true, unique: true, index: true },
     url: { type: String, required: true },
+    provider: { type: String, enum: ["local", "cloudinary", "external"], default: "local", index: true },
+    publicId: { type: String, default: null },
+    secureUrl: { type: String, default: null },
+    resourceType: { type: String, enum: ["image"], default: "image" },
+    format: { type: String, default: null },
+    width: { type: Number, default: null },
+    height: { type: Number, default: null },
+    bytes: { type: Number, default: null },
+    version: { type: Number, default: null },
+    originalFilename: { type: String, default: null },
     filename: { type: String, required: true },
     mimeType: { type: String, required: true },
     size: { type: Number, required: true },
@@ -157,6 +177,7 @@ const mediaSchema = sourceSchema<MediaDocument>(
   },
   "media",
 );
+mediaSchema.index({ provider: 1, publicId: 1 }, { unique: true, partialFilterExpression: { publicId: { $type: "string" } } });
 
 const orderSchema = sourceSchema<OrderDocument>(
   {

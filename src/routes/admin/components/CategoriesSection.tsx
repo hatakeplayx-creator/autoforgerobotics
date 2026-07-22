@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { Search } from "lucide-react";
 import { ApiError } from "@/services/api";
+import MediaPicker from "./MediaPicker";
 
 export default function CategoriesSection({ token }: { token?: string }) {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
@@ -15,6 +16,7 @@ export default function CategoriesSection({ token }: { token?: string }) {
   const [editing, setEditing] = useState<AdminCategory | null>(null);
   const [formName, setFormName] = useState("");
   const [formSlug, setFormSlug] = useState("");
+  const [formImageId, setFormImageId] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [confirmDelete, setConfirmDelete] = useState<AdminCategory | null>(null);
@@ -55,6 +57,7 @@ export default function CategoriesSection({ token }: { token?: string }) {
     setEditing(null);
     setFormName("");
     setFormSlug("");
+    setFormImageId("");
     setFieldErrors({});
     setModalOpen(true);
   }
@@ -63,6 +66,7 @@ export default function CategoriesSection({ token }: { token?: string }) {
     setEditing(cat);
     setFormName(cat.name);
     setFormSlug(cat.slug);
+    setFormImageId(cat.image?.id??"");
     setFieldErrors({});
     setModalOpen(true);
   }
@@ -81,10 +85,10 @@ export default function CategoriesSection({ token }: { token?: string }) {
     setFieldErrors({});
     try {
       if (editing) {
-        await updateCategory(editing.id, { name: formName.trim(), slug: formSlug.trim() }, token);
+        await updateCategory(editing.id, { name: formName.trim(), slug: formSlug.trim(), imageId: formImageId||null }, token);
         toast.success("Category updated");
       } else {
-        await createCategory({ name: formName.trim(), slug: formSlug.trim() }, token);
+        await createCategory({ name: formName.trim(), slug: formSlug.trim(), imageId: formImageId||undefined }, token);
         toast.success("Category created");
       }
       setModalOpen(false);
@@ -189,6 +193,7 @@ export default function CategoriesSection({ token }: { token?: string }) {
                 required
               />
             </label>
+            <MediaPicker token={token} value={formImageId?[formImageId]:[]} onChange={(values)=>setFormImageId(values[0]??"")} label="Category image" />
           </div>
           <DialogFooter>
             <button onClick={() => setModalOpen(false)} className="rounded border px-3 py-1.5 text-sm">

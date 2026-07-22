@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useHeroBanners, useStoreMetadata } from "@/hooks/useStoreData";
 import { Skeleton } from "@/components/ui/skeleton";
+import { mediaVariantUrl } from "@/lib/media";
 
 const serviceIcons: Record<string, LucideIcon> = {
   "PCB Manufacturing": CircuitBoard,
@@ -56,7 +57,7 @@ export function HeroSection() {
     );
   }
 
-  const heroImage = banners?.[0]?.image || "/assets/hero-1.jpg";
+  const heroImage = mediaVariantUrl(banners?.[0]?.image, "homepageHero") || "/assets/hero-1.jpg";
   const services = meta.services.length ? meta.services : [
     { name: "PCB Manufacturing", emoji: "" },
     { name: "3D Printing", emoji: "" },

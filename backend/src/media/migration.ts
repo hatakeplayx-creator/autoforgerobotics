@@ -1,0 +1,1 @@
+export function selectMigrationCandidates<T extends {id:string;provider?:string}>(rows:T[],completedIds:Iterable<string>,batchSize:number):T[]{const completed=new Set(completedIds);return rows.filter(row=>row.provider!=="cloudinary"&&!completed.has(row.id)).slice(0,batchSize);}

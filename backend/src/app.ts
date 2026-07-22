@@ -14,8 +14,11 @@ import nodemailer from "nodemailer";
 import Razorpay from "razorpay";
 import { z } from "zod";
 import { createOTPProvider, generateOTP } from "./providers/otp.js";
-import { createMediaStorage } from "./media/storage.js";
-import { mongo, Role, OrderStatus, InventoryAction, EnquiryStatus, PaymentStatus, PaymentProvider, ShipmentStatus, type ProductRow } from "./mongodb/database.js";
+import { loadMediaConfiguration } from "./media/config.js";
+import { createMediaStorage, MediaStorageError, type StoredMedia } from "./media/storage.js";
+import { countReferences, persistMediaUpload, replaceMediaAsset } from "./media/lifecycle.js";
+import { MAX_MEDIA_FILE_BYTES, MAX_MEDIA_FILES, MAX_MEDIA_REQUEST_BYTES, MediaValidationError, validateImageBatch, validateImageFile } from "./media/validation.js";
+import { mongo, Role, OrderStatus, InventoryAction, EnquiryStatus, PaymentStatus, PaymentProvider, ShipmentStatus, type MediaRow, type ProductRow } from "./mongodb/database.js";
 
 const optionalString = z.preprocess(value=>value===""?undefined:value,z.string().optional());
 const optionalEmail = z.preprocess(value=>value===""?undefined:value,z.string().email().optional());
@@ -27,8 +30,7 @@ const environmentSchema = z.object({
   CORS_ORIGIN:z.string().default(""),
   PORT:z.coerce.number().int().min(1).max(65535).default(4000),
   UPLOAD_DIR:z.string().min(1).default("backend/uploads"),
-  MEDIA_STORAGE_DRIVER:z.enum(["local","vercel-blob"]).optional(),
-  BLOB_READ_WRITE_TOKEN:optionalString,
+  MEDIA_STORAGE_DRIVER:z.enum(["local","cloudinary"]).optional(),
   AUTH_COOKIE_NAME:z.string().min(1).default("autoforge_refresh"),
   AUTH_COOKIE_SAMESITE:z.enum(["lax","strict","none"]).optional(),
   AUTH_COOKIE_SECURE:z.enum(["true","false"]).optional(),
@@ -43,8 +45,6 @@ const environmentSchema = z.object({
   if(value.NODE_ENV==="production" && process.env.MONGODB_TRANSACTIONS!=="true") ctx.addIssue({code:z.ZodIssueCode.custom,path:["MONGODB_TRANSACTIONS"],message:"must be true in production to protect checkout and token rotation"});
   if(value.NODE_ENV==="production" && /localhost|127\.0\.0\.1/.test(value.CORS_ORIGIN)) ctx.addIssue({code:z.ZodIssueCode.custom,path:["CORS_ORIGIN"],message:"cannot contain local origins in production"});
   if(value.NODE_ENV==="production" && value.AUTH_COOKIE_SECURE==="false") ctx.addIssue({code:z.ZodIssueCode.custom,path:["AUTH_COOKIE_SECURE"],message:"cannot be false in production"});
-  if(value.NODE_ENV==="production" && value.MEDIA_STORAGE_DRIVER==="local") ctx.addIssue({code:z.ZodIssueCode.custom,path:["MEDIA_STORAGE_DRIVER"],message:"cannot use ephemeral local storage in production"});
-  if(value.NODE_ENV==="production" && !value.BLOB_READ_WRITE_TOKEN) ctx.addIssue({code:z.ZodIssueCode.custom,path:["BLOB_READ_WRITE_TOKEN"],message:"is required for durable production media uploads"});
   if((value.RAZORPAY_KEY_ID && !value.RAZORPAY_KEY_SECRET)||(!value.RAZORPAY_KEY_ID && value.RAZORPAY_KEY_SECRET)) ctx.addIssue({code:z.ZodIssueCode.custom,path:["RAZORPAY_KEY_ID"],message:"and RAZORPAY_KEY_SECRET must be configured together"});
   if(value.SMTP_HOST && (!value.SMTP_USER||!value.SMTP_PASS||!value.MAIL_FROM)) ctx.addIssue({code:z.ZodIssueCode.custom,path:["SMTP_HOST"],message:"requires SMTP_USER, SMTP_PASS, and MAIL_FROM"});
 });
@@ -60,14 +60,16 @@ const razorpay = env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET
   ? new Razorpay({ key_id: env.RAZORPAY_KEY_ID, key_secret: env.RAZORPAY_KEY_SECRET }) 
   : undefined;
 export const app = express();
+const mediaConfiguration = loadMediaConfiguration(process.env);
 const mediaStorage = createMediaStorage({
-  driver: env.MEDIA_STORAGE_DRIVER ?? (env.NODE_ENV === "production" ? "vercel-blob" : "local"),
+  driver: mediaConfiguration.driver,
   uploadDir: env.UPLOAD_DIR,
-  blobToken: env.BLOB_READ_WRITE_TOKEN,
+  cloudinary: mediaConfiguration.cloudinary,
 });
-const uploadExtensions:Record<string,string>={"image/jpeg":".jpg","image/png":".png","image/webp":".webp"};
-const upload = multer({ storage:multer.memoryStorage(), limits:{ fileSize:10*1024*1024, files:10 }, fileFilter:(_r,f,cb)=>cb(null,Object.hasOwn(uploadExtensions,f.mimetype)) });
-function hasValidImageSignature(file:Express.Multer.File):boolean{const b=file.buffer;if(file.mimetype==="image/jpeg")return b.length>=3&&b[0]===0xff&&b[1]===0xd8&&b[2]===0xff;if(file.mimetype==="image/png")return b.length>=8&&b.subarray(0,8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]));if(file.mimetype==="image/webp")return b.length>=12&&b.toString("ascii",0,4)==="RIFF"&&b.toString("ascii",8,12)==="WEBP";return false;}
+const localMediaStorage = mediaStorage.driver === "local" ? mediaStorage : createMediaStorage({ driver: "local", uploadDir: env.UPLOAD_DIR });
+const upload = multer({ storage:multer.memoryStorage(), limits:{ fileSize:MAX_MEDIA_FILE_BYTES, files:MAX_MEDIA_FILES, fields:5, parts:MAX_MEDIA_FILES+5 } });
+const uploadRateLimit=rateLimit({windowMs:15*60e3,max:30,standardHeaders:true,legacyHeaders:false,message:{message:"Too many media uploads; try again later",code:"UPLOAD_RATE_LIMIT"}});
+function enforceUploadRequestSize(req:express.Request,_res:express.Response,next:express.NextFunction){const length=Number(req.get("content-length")??0);if(Number.isFinite(length)&&length>MAX_MEDIA_REQUEST_BYTES)return next(new ApiError(413,"Upload request exceeds the Vercel-compatible size limit"));next();}
 const transporter = env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS ? nodemailer.createTransport({host:env.SMTP_HOST,port:env.SMTP_PORT,secure:env.SMTP_PORT===465,auth:{user:env.SMTP_USER,pass:env.SMTP_PASS}}) : undefined;
 const tokenHash=(token:string)=>createHash("sha256").update(token).digest("hex");
 const publicUser=(u:{id:string;email:string;name:string;phone?:string|null;role:Role})=>({id:u.id,email:u.email,name:u.name,phone:u.phone??undefined,role:u.role});
@@ -494,8 +496,18 @@ app.get("/api/health",(_req,res)=>res.json({status:"ok",timestamp:new Date().toI
 app.get("/api/ready",asyncRoute(async(_req,res)=>{try{await mongo.ping();res.json({status:"ready",timestamp:new Date().toISOString()});}catch{res.status(503).json({status:"not_ready",timestamp:new Date().toISOString()});}}));
 const sensitiveSettingKey=/(?:secret|password|pass|token|api[_-]?key|auth[_-]?token)/i;
 app.get("/api/settings",auth,admin,asyncRoute(async(_req,res)=>res.json((await mongo.setting.findMany()).filter(setting=>!sensitiveSettingKey.test(setting.key)))));app.put("/api/settings/:key",auth,admin,asyncRoute(async(req,res)=>{const {value}=settingWriteSchema.parse(req.body);const key=z.string().min(1).max(120).parse(req.params.key);if(sensitiveSettingKey.test(key))throw new ApiError(403,"Secrets must be configured through environment variables");res.json(await mongo.setting.upsert({where:{key},update:{value},create:{key,value}}));}));
-app.post("/api/media",auth,admin,upload.array("files",10),asyncRoute(async(req,res)=>{const files=req.files as Express.Multer.File[];if(!files?.length){res.status(400).json({message:"At least one image is required"});return;}if(files.some(file=>!hasValidImageSignature(file)))throw new ApiError(422,"One or more files do not match their declared image type");const media=await Promise.all(files.map(async f=>{const ext=uploadExtensions[f.mimetype];const stored=await mediaStorage.put(`${randomBytes(16).toString("hex")}${ext}`,f.buffer,f.mimetype);return mongo.media.create({data:{key:stored.key,url:stored.url,filename:path.basename(f.originalname).slice(0,255),mimeType:f.mimetype,size:f.size}})}));res.status(201).json(media);}));
-app.get("/api/media",auth,admin,asyncRoute(async(_req,res)=>res.json(await mongo.media.findMany({orderBy:{createdAt:"desc"}}))));app.patch("/api/media/:id",auth,admin,asyncRoute(async(req,res)=>res.json(await mongo.media.update({where:idSchema.parse(req.params),data:z.object({filename:z.string().trim().min(1).max(255).optional(),altText:z.string().trim().max(500).optional().nullable()}).strict().parse(req.body)}))));app.delete("/api/media/:id",auth,admin,asyncRoute(async(req,res)=>{const m=await mongo.media.delete({where:idSchema.parse(req.params)});await mediaStorage.delete(m.key,m.url);res.status(204).end();}));
+const mediaFolder=z.enum(["products","categories","brands","homepage","cms","media","temp"]);
+function mediaData(stored:StoredMedia,file:Express.Multer.File,probe:ReturnType<typeof validateImageFile>){return {key:stored.key,url:stored.secureUrl,provider:stored.provider,publicId:stored.publicId??null,secureUrl:stored.secureUrl,resourceType:stored.resourceType,format:stored.format??probe.format,width:stored.width??probe.width,height:stored.height??probe.height,bytes:stored.bytes,version:stored.version??null,originalFilename:path.basename(file.originalname).slice(0,255),filename:path.basename(file.originalname).slice(0,255),mimeType:probe.mimeType,size:stored.bytes};}
+function prepareUploadedFile(file:Express.Multer.File,folder:string){const probe=validateImageFile(file);const id=randomBytes(18).toString("hex");const publicId=mediaStorage.driver==="cloudinary"?`${mediaStorage.rootFolder}/${folder}/${id}`:`${id}.${probe.format}`;return {probe,input:{publicId,data:file.buffer,contentType:probe.mimeType,originalFilename:path.basename(file.originalname)}};}
+function containsMediaValue(value:unknown,tokens:Set<string>):boolean{if(typeof value==="string")return tokens.has(value);if(Array.isArray(value))return value.some(item=>containsMediaValue(item,tokens));if(value&&typeof value==="object")return Object.values(value).some(item=>containsMediaValue(item,tokens));return false;}
+async function mediaReferences(media:MediaRow){const [productImages,reviewImages,categories,brands,blocks,settings]=await Promise.all([mongo.productImage.count({where:{mediaId:media.id}}),mongo.productReviewImage.count({where:{mediaId:media.id}}),mongo.category.count({where:{imageId:media.id}}),mongo.brandCollaboration.findMany(),mongo.homepageBlock.findMany(),mongo.setting.findMany()]);const tokens=new Set([media.id,media.key,media.url,media.secureUrl,media.publicId].filter((value):value is string=>Boolean(value)));return {productImages,reviewImages,categories,brands:brands.filter(row=>tokens.has(row.logoUrl)).length,homepageBlocks:blocks.filter(row=>containsMediaValue(row.content,tokens)).length,settings:settings.filter(row=>containsMediaValue(row.value,tokens)).length};}
+function referenceTotal(refs:Awaited<ReturnType<typeof mediaReferences>>){return countReferences(refs);}
+async function deleteStoredMedia(media:MediaRow){if(media.provider==="cloudinary"||media.publicId){if(mediaStorage.driver!=="cloudinary")throw new MediaStorageError("Cloudinary is not configured for deletion");await mediaStorage.delete(media.publicId??media.key);return;}if(media.url.startsWith("/uploads/")||media.provider==="local")await localMediaStorage.delete(media.key);}
+app.post("/api/media",auth,admin,uploadRateLimit,enforceUploadRequestSize,upload.array("files",MAX_MEDIA_FILES),asyncRoute(async(req,res)=>{const files=req.files as Express.Multer.File[];if(!files?.length)throw new ApiError(400,"At least one image is required");validateImageBatch(files);const folder=mediaFolder.default("media").parse(req.body.folder);const created:Array<{row:MediaRow;stored:StoredMedia}>=[];try{for(const file of files){const prepared=prepareUploadedFile(file,folder);const uploaded=await persistMediaUpload(mediaStorage,prepared.input,stored=>mongo.media.create({data:mediaData(stored,file,prepared.probe)}));created.push({row:uploaded.value,stored:uploaded.stored});}res.status(201).json(created.map(item=>item.row));}catch(error){for(const item of created.reverse()){await mongo.media.delete({where:{id:item.row.id}}).catch(()=>undefined);await mediaStorage.delete(item.stored.publicId??item.stored.key).catch(()=>undefined);}throw error;}}));
+app.get("/api/media",auth,admin,asyncRoute(async(_req,res)=>res.json(await mongo.media.findMany({orderBy:{createdAt:"desc"}}))));
+app.patch("/api/media/:id",auth,admin,asyncRoute(async(req,res)=>res.json(await mongo.media.update({where:idSchema.parse(req.params),data:z.object({filename:z.string().trim().min(1).max(255).optional(),altText:z.string().trim().max(500).optional().nullable()}).strict().parse(req.body)}))));
+app.post("/api/media/:id/replace",auth,admin,uploadRateLimit,enforceUploadRequestSize,upload.single("file"),asyncRoute(async(req,res)=>{const id=idSchema.parse(req.params).id;const old=await mongo.media.findUnique({where:{id}});if(!old)throw new ApiError(404,"Media not found");if(!req.file)throw new ApiError(400,"An image is required");const folder=mediaFolder.default("media").parse(req.body.folder);const prepared=prepareUploadedFile(req.file,folder);const replacement=await replaceMediaAsset(mediaStorage,prepared.input,stored=>mongo.media.update({where:{id},data:mediaData(stored,req.file!,prepared.probe)}),()=>deleteStoredMedia(old),()=>console.warn(JSON.stringify({event:"media_replacement_old_asset_cleanup_failed",mediaId:id,oldPublicId:old.publicId??undefined,timestamp:new Date().toISOString()})));res.json(replacement.value);}));
+app.delete("/api/media/:id",auth,admin,asyncRoute(async(req,res)=>{const id=idSchema.parse(req.params).id;const media=await mongo.media.findUnique({where:{id}});if(!media){res.status(204).end();return;}const references=await mediaReferences(media);if(referenceTotal(references)>0){res.status(409).json({message:"Media is still referenced and cannot be permanently deleted",code:"MEDIA_IN_USE",references});return;}await deleteStoredMedia(media);await mongo.media.delete({where:{id}});console.info(JSON.stringify({event:"media_deleted",mediaId:id,publicId:media.publicId??undefined,userId:req.user!.sub,timestamp:new Date().toISOString()}));res.status(204).end();}));
 const enquirySchema=z.object({type:z.enum(["contact","sell","bulk"]),name:z.string().min(2),email:z.string().email(),phone:z.string().max(30).optional(),companyName:z.string().max(160).optional(),message:z.string().min(5).max(5000),details:z.record(z.unknown()).optional()});
 app.post("/api/enquiries",rateLimit({windowMs:60*60e3,max:10}),asyncRoute(async(req,res)=>{const input=enquirySchema.strict().parse(req.body);const enquiry=await mongo.enquiry.create({data:input});await Promise.all([email(input.email,"We received your AutoForge enquiry",`Thanks ${input.name}; our team will respond shortly.`),email(env.MAIL_FROM??"",`New ${input.type} enquiry`,`${input.name}: ${input.message}`)]);res.status(201).json(enquiry);}));
 app.get("/api/enquiries",auth,admin,asyncRoute(async(req,res)=>{const q=z.string().optional().parse(req.query.q);const status=z.nativeEnum(EnquiryStatus).optional().parse(req.query.status);res.json(await mongo.enquiry.findMany({where:{type:"sell",status,OR:q?[{name:{contains:q,mode:"insensitive"}},{email:{contains:q,mode:"insensitive"}},{companyName:{contains:q,mode:"insensitive"}}]:undefined},include:{notes:true},orderBy:{createdAt:"desc"}}));}));
@@ -508,6 +520,8 @@ app.use((err:unknown,_req:express.Request,res:express.Response,_next:express.Nex
   const requestId=String(res.locals.requestId??"");
   if(err instanceof z.ZodError){res.status(422).json({message:"Validation failed",code:"VALIDATION_ERROR",errors:err.flatten(),requestId});return;}
   if(err instanceof multer.MulterError){res.status(err.code==="LIMIT_FILE_SIZE"?413:422).json({message:"Upload rejected",code:err.code,requestId});return;}
+  if(err instanceof MediaValidationError){res.status(err.status).json({message:err.message,code:"INVALID_MEDIA",requestId});return;}
+  if(err instanceof MediaStorageError){res.status(err.status).json({message:err.message,code:"MEDIA_STORAGE_UNAVAILABLE",requestId});return;}
   if(err instanceof ApiError){res.status(err.status).json({message:err.message,code:"API_ERROR",requestId});return;}
   const errorWithCode=err as {code?:number;message?:string;name?:string};
   if(errorWithCode.code===11000){res.status(409).json({message:"Duplicate record",code:"CONFLICT",requestId});return;}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { apiFetch, resolveMediaUrl } from "@/services/api";
+import { apiFetch } from "@/services/api";
+import { mediaVariantUrl } from "@/lib/media";
 
 type Brand = {
   id: string;
@@ -17,7 +18,7 @@ function BrandLogo({ brand }: { brand: Brand }) {
     return <span className="text-center text-sm font-black tracking-tight text-muted-foreground">{brand.name}</span>;
   }
 
-  const src = resolveMediaUrl(brand.logoUrl);
+  const src = mediaVariantUrl(brand.logoUrl, "brandLogo");
   return <img src={src} alt={brand.name} onError={() => setFailed(true)} className="max-h-full max-w-full object-contain grayscale transition duration-300 group-hover:grayscale-0" />;
 }
 

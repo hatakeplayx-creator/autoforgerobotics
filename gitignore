@@ -20,6 +20,7 @@ dist-ssr
 !.env.example
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/cloudinary-migration-manifest.json
 
 # Wrangler / Cloudflare
 .wrangler/
